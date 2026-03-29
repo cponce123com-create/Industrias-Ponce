@@ -101,20 +101,25 @@ export default function MsdsPage() {
     win.document.write(`<!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=378, height=276">
   <title>Etiqueta QR - ${selected.code}</title>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script>
   <style>
-    @page { size: 10cm 7.3cm; margin: 0; }
-    @media print { * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-    body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+    @page { size: 10cm 7.3cm landscape; margin: 0; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { margin: 0; padding: 0; width: 10cm; height: 7.3cm; overflow: hidden; font-family: Arial, sans-serif; }
+    @media print { .instruccion { display: none; } }
+    .instruccion {
+      font-family: sans-serif; font-size: 12px; color: #666;
+      text-align: center; padding: 8px;
+      background: #fffbea; border-bottom: 1px solid #e5c700;
+    }
     .label {
       position: absolute; top: 0; left: 0;
       width: 10cm; height: 7.3cm;
       display: flex; flex-direction: row;
-      box-sizing: border-box;
-      padding: 6mm;
-      gap: 4mm;
+      padding: 6mm; gap: 4mm;
     }
     .col-qr {
       width: 45%;
@@ -135,6 +140,9 @@ export default function MsdsPage() {
   </style>
 </head>
 <body>
+  <div class="instruccion">
+    ⚠️ En el diálogo de impresión selecciona: <strong>Orientación Horizontal / Landscape</strong>
+  </div>
   <div class="label">
     <div class="col-qr">${svg}</div>
     <div class="col-info">
