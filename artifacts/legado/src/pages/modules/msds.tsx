@@ -16,6 +16,11 @@ interface Product {
   name: string;
   msds: boolean;
   msdsUrl?: string | null;
+  hazardLevel?: string | null;
+  hazardPictograms?: string | null;
+  firstAid?: string | null;
+  category?: string | null;
+  type?: string | null;
 }
 
 interface MsdsStats {
@@ -181,42 +186,82 @@ export default function MsdsPage() {
     const warehouseLabel = warehouse === "all" || !warehouse ? "Todos los almacenes" : warehouse;
     const dateStr = new Date().toLocaleDateString("es-PE", { year: "numeric", month: "long", day: "numeric" });
 
+    const levelConfig = (level: string | null | undefined): { color: string; label: string } => {
+      if (level === "alto_riesgo") return { color: "#c0392b", label: "⚠ PRODUCTO QUÍMICO – ALTO RIESGO" };
+      if (level === "controlado")  return { color: "#2c3e50", label: "⚠ USO CONTROLADO" };
+      return { color: "#e67e22", label: "⚠ PRODUCTO QUÍMICO – PRECAUCIÓN" };
+    };
+
+    const pictoEmoji: Record<string, string> = {
+      toxico: "☠️", inflamable: "🔥", corrosivo: "🧪", nocivo: "⚠️",
+      oxidante: "🔶", explosivo: "💥", peligro_ambiental: "🌿",
+      gas_presion: "🔵", peligro_salud: "❤️",
+    };
+
+    const renderPictos = (raw: string | null | undefined): string => {
+      let keys: string[] = [];
+      try { keys = JSON.parse(raw ?? "[]") as string[]; } catch { /* empty */ }
+      if (!keys.length) return "";
+      const diamonds = keys.map((k) => {
+        const emoji = pictoEmoji[k] ?? "⚠";
+        return `<div style="width:28px;height:28px;border:2px solid #333;transform:rotate(45deg);display:flex;align-items:center;justify-content:center;flex-shrink:0;background:white;">
+          <span style="transform:rotate(-45deg);font-size:14px;line-height:1;">${emoji}</span>
+        </div>`;
+      }).join("");
+      return `<div style="display:flex;flex-wrap:wrap;gap:4px;max-width:80px;justify-content:flex-end;flex-shrink:0;">${diamonds}</div>`;
+    };
+
+    const renderFirstAid = (text: string | null | undefined, borderColor: string): string => {
+      if (!text?.trim()) return "";
+      const items = text.split(/[·\n]/).map((s) => s.trim()).filter(Boolean);
+      const bullets = items.map((i) => `<div style="margin-bottom:2px;">• ${i}</div>`).join("");
+      return `<div style="background:#fef9e7;border-left:3px solid ${borderColor};padding:5px 7px;font-size:8px;color:#333;line-height:1.4;">
+        <div style="font-weight:bold;margin-bottom:2px;">🚨 En caso de contacto:</div>
+        ${bullets}
+      </div>`;
+    };
+
     const chunks: Product[][] = [];
     for (let i = 0; i < withMsds.length; i += 6) chunks.push(withMsds.slice(i, i + 6));
 
-    const totalPages = chunks.length;
-    const pagesHtml = chunks.map((chunk, idx) => {
-      const pageNum = idx + 1;
-      const cards = chunk.map((p) => `
-        <div class="card">
-          <div class="card-left">
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(p.msdsUrl!)}" width="80" height="80" alt="QR">
-            <span class="msds-label">MSDS</span>
-          </div>
-          <div class="card-right">
-            <div class="product-name">${p.name}</div>
-            <div class="product-code">${p.code}</div>
-            <div class="barcode-wrap">
-              <svg class="barcode" data-code="${p.code}"></svg>
+    const pagesHtml = chunks.map((chunk) => {
+      const cards = chunk.map((p) => {
+        const { color, label } = levelConfig(p.hazardLevel);
+        const pictoHtml = renderPictos(p.hazardPictograms);
+        const firstAidHtml = renderFirstAid(p.firstAid, color);
+        return `
+        <div class="card" style="border-color:${color};">
+          <div style="background:${color};color:white;text-align:center;padding:4px 6px;font-size:9px;font-weight:bold;letter-spacing:0.5px;">${label}</div>
+          <div style="display:flex;align-items:flex-start;padding:5px 6px;gap:6px;border-bottom:1px solid #eee;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:11px;font-weight:bold;color:#1a1a2e;text-transform:uppercase;line-height:1.2;">${p.name}</div>
+              <div style="font-size:8px;color:#666;margin-top:2px;">Código: ${p.code}</div>
+              <div style="font-size:8px;color:#666;">Área: ${p.warehouse}</div>
+              ${p.category ? `<div style="font-size:8px;color:#666;">Tipo: ${p.category}</div>` : ""}
             </div>
-            <div class="scan-hint">Escanea el QR para ver la ficha de seguridad</div>
+            ${pictoHtml}
           </div>
-        </div>`).join("");
+          <div style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #eee;">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=50x50&data=${encodeURIComponent(p.msdsUrl!)}" width="50" height="50" alt="QR" style="flex-shrink:0;">
+            <div style="flex:1;min-width:0;">
+              <svg class="barcode-sm" data-code="${p.code}" style="width:100%;height:25px;display:block;"></svg>
+              <div style="font-size:8px;color:#666;margin-top:2px;">${p.code}</div>
+            </div>
+          </div>
+          ${firstAidHtml}
+          <div style="padding:4px 6px;margin-top:auto;">
+            <svg class="barcode-lg" data-code="${p.code}" style="width:100%;height:35px;display:block;"></svg>
+          </div>
+        </div>`;
+      }).join("");
 
       return `
-        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #1a1a2e;padding-bottom:6px;margin-bottom:8px;">
-          <div>
-            <div style="font-size:15px;font-weight:bold;color:#1a1a2e;letter-spacing:1px;">FICHAS DE SEGURIDAD — MSDS</div>
-            <div style="font-size:10px;color:#666;">Almacén: <strong>${warehouseLabel}</strong> · Página ${pageNum} de ${totalPages}</div>
-          </div>
-          <div style="text-align:right;font-size:10px;color:#666;">
-            <div>Fecha de emisión: ${dateStr}</div>
-            <div style="font-size:9px;color:#aaa;">Solo para uso interno</div>
-          </div>
+        <div style="background:#c0392b;color:white;text-align:center;padding:6px;font-size:13px;font-weight:bold;letter-spacing:1px;margin-bottom:8px;">
+          ⚠ PRODUCTOS QUÍMICOS – FICHAS DE SEGURIDAD MSDS
         </div>
         <div class="page">${cards}</div>
-        <div style="text-align:center;font-size:8px;color:#bbb;border-top:1px solid #eee;padding-top:4px;margin-top:6px;">
-          Documento confidencial de uso interno · En caso de emergencia contactar al responsable del almacén
+        <div style="text-align:center;font-size:8px;color:#999;border-top:1px solid #ddd;padding-top:4px;margin-top:6px;">
+          Documento confidencial · Uso interno de emergencia · Almacén: ${warehouseLabel} · Emitido: ${dateStr}
         </div>
         <div class="page-break"></div>`;
     }).join("");
@@ -241,73 +286,39 @@ export default function MsdsPage() {
     }
     .page-break { break-after: page; page-break-after: always; }
     .card {
-      border: 1.5px solid #1a1a2e;
+      border: 2px solid #ccc;
       border-radius: 6px;
       display: flex;
-      flex-direction: row;
-      align-items: stretch;
+      flex-direction: column;
       overflow: hidden;
       break-inside: avoid;
       page-break-inside: avoid;
     }
-    .card-left {
-      background: #1a1a2e;
-      width: 3.2cm;
-      min-width: 3.2cm;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 8px;
-    }
-    .card-left img { width: 80px; height: 80px; background: white; padding: 4px; border-radius: 4px; }
-    .card-left .msds-label { color: white; font-size: 9px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
-    .card-right {
-      flex: 1;
-      padding: 10px 12px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: 4px;
-      background: white;
-    }
-    .product-name { font-size: 12px; font-weight: bold; color: #1a1a2e; line-height: 1.3; text-transform: uppercase; }
-    .product-code { font-size: 10px; color: #666; letter-spacing: 0.5px; }
-    .barcode-wrap { margin-top: 6px; }
-    svg.barcode { width: 100%; height: 35px; }
-    .scan-hint { font-size: 8px; color: #999; margin-top: 4px; }
   </style>
 </head>
 <body>
   ${pagesHtml}
   <script>
-    function tryPrint(jsBarcodeReady, imgsReady) {
-      if (jsBarcodeReady && imgsReady) window.print();
+    function tryPrint(bcReady, imgsReady) {
+      if (bcReady && imgsReady) window.print();
     }
-
     var barcodeReady = false;
     var imgsDone = false;
 
-    // Load JsBarcode, then render all barcodes
     var script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js';
     script.onload = function() {
-      document.querySelectorAll('.barcode').forEach(function(el) {
-        JsBarcode(el, el.dataset.code, {
-          format: 'CODE128',
-          displayValue: false,
-          height: 30,
-          margin: 0,
-          width: 1.2
-        });
+      document.querySelectorAll('.barcode-sm').forEach(function(el) {
+        JsBarcode(el, el.dataset.code, { format: 'CODE128', displayValue: false, height: 25, margin: 0, width: 1.2 });
+      });
+      document.querySelectorAll('.barcode-lg').forEach(function(el) {
+        JsBarcode(el, el.dataset.code, { format: 'CODE128', displayValue: false, height: 35, margin: 0, width: 1.2 });
       });
       barcodeReady = true;
       tryPrint(barcodeReady, imgsDone);
     };
     document.head.appendChild(script);
 
-    // Wait for all QR images to finish loading
     var imgs = Array.from(document.querySelectorAll('img'));
     if (imgs.length === 0) {
       imgsDone = true;
