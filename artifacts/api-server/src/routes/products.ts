@@ -276,6 +276,19 @@ router.put("/:id", requireAuth, requireRole("supervisor", "admin", "operator"), 
   res.json(updated);
 }));
 
+router.patch("/:id", requireAuth, requireRole("supervisor", "admin", "operator"), asyncHandler(async (req, res) => {
+  const authedReq = req as AuthenticatedRequest;
+  const { id } = req.params;
+  const parsed = productSchema.partial().safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Datos inválidos" }); return; }
+  const [updated] = await db.update(productsTable)
+    .set({ ...parsed.data, updatedAt: new Date() })
+    .where(eq(productsTable.id, id as string)).returning();
+  if (!updated) { res.status(404).json({ error: "Producto no encontrado" }); return; }
+  void writeAuditLog({ userId: authedReq.userId, action: "update", resource: "product", resourceId: id, ipAddress: req.ip });
+  res.json(updated);
+}));
+
 router.delete("/all", requireAuth, requireRole("admin"), asyncHandler(async (_req, res) => {
   await db.transaction(async (tx) => {
     await tx.delete(dyeLotsTable);

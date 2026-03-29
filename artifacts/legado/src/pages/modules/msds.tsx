@@ -1,12 +1,12 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { getAuthHeaders } from "@/hooks/use-auth";
 import { useWarehouse, WAREHOUSES, type Warehouse as WarehouseType } from "@/contexts/WarehouseContext";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, ShieldCheck, ShieldOff, Download, Printer, AlertCircle, Loader2 } from "lucide-react";
+import { Search, ShieldCheck, ShieldOff, Download, Printer, AlertCircle, Loader2, Save } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
 interface Product {
@@ -34,8 +34,12 @@ const apiJson = (path: string) =>
 
 export default function MsdsPage() {
   const { warehouse, setWarehouse } = useWarehouse();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Product | null>(null);
+  const [msdsInput, setMsdsInput] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const warehouseQ = warehouse && warehouse !== "all" ? `?warehouse=${warehouse}` : "";
   const warehouseStats = warehouse && warehouse !== "all" ? `?warehouse=${warehouse}` : "";
@@ -62,6 +66,32 @@ export default function MsdsPage() {
   const pct = stats && stats.total > 0
     ? Math.round((stats.conMsds / stats.total) * 100)
     : 0;
+
+  async function handleSaveMsds() {
+    if (!selected || !msdsInput.trim()) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const res = await fetch(`${BASE}/api/products/${selected.id}`, {
+        method: "PATCH",
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ msdsUrl: msdsInput.trim(), msds: true }),
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error(e.error ?? "Error al guardar");
+      }
+      const updated: Product = await res.json();
+      setSelected(updated);
+      setMsdsInput("");
+      void queryClient.invalidateQueries({ queryKey: ["/api/products", warehouse] });
+      void queryClient.invalidateQueries({ queryKey: ["/api/products/msds-stats", warehouse] });
+    } catch (err: any) {
+      setSaveError(err.message ?? "Error desconocido");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   function handlePrintQr() {
     if (!selected || !selected.msdsUrl) return;
@@ -317,24 +347,69 @@ export default function MsdsPage() {
                     </div>
                   </div>
                 ) : (
-                  <div style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: "32px 20px",
-                    background: "#fff7f7",
-                    borderRadius: 10,
-                    border: "1.5px dashed #fca5a5",
-                    textAlign: "center",
-                  }}>
-                    <ShieldOff style={{ width: 36, height: 36, color: "#dc2626", marginBottom: 12, opacity: 0.7 }} />
-                    <p style={{ fontSize: 14, fontWeight: 600, color: "#dc2626", margin: "0 0 6px 0" }}>
-                      Ficha de Seguridad no disponible
-                    </p>
-                    <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>
-                      Este producto no tiene MSDS registrada. Actualice el registro del producto para agregar la URL de la ficha de seguridad.
-                    </p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "14px 16px",
+                      background: "#fff7f7",
+                      borderRadius: 8,
+                      border: "1.5px dashed #fca5a5",
+                    }}>
+                      <ShieldOff style={{ width: 20, height: 20, color: "#dc2626", flexShrink: 0 }} />
+                      <p style={{ fontSize: 13, fontWeight: 600, color: "#dc2626", margin: 0 }}>
+                        Ficha de Seguridad no disponible
+                      </p>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <label style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
+                        Registrar URL de MSDS
+                      </label>
+                      <input
+                        type="url"
+                        value={msdsInput}
+                        onChange={(e) => { setMsdsInput(e.target.value); setSaveError(null); }}
+                        onKeyDown={(e) => { if (e.key === "Enter") void handleSaveMsds(); }}
+                        placeholder="Pega aquí el enlace de Google Drive o ruta local..."
+                        disabled={saving}
+                        style={{
+                          width: "100%",
+                          padding: "9px 12px",
+                          fontSize: 13,
+                          border: saveError ? "1.5px solid #dc2626" : "1.5px solid #e2e8f0",
+                          borderRadius: 8,
+                          outline: "none",
+                          boxSizing: "border-box",
+                          background: saving ? "#f8fafc" : "#fff",
+                          color: "#1e293b",
+                          transition: "border-color 0.12s",
+                        }}
+                      />
+                      {saveError && (
+                        <p style={{ fontSize: 12, color: "#dc2626", margin: 0, display: "flex", alignItems: "center", gap: 4 }}>
+                          <AlertCircle style={{ width: 13, height: 13, flexShrink: 0 }} />
+                          {saveError}
+                        </p>
+                      )}
+                      <Button
+                        onClick={() => void handleSaveMsds()}
+                        disabled={saving || !msdsInput.trim()}
+                        style={{
+                          background: saving || !msdsInput.trim() ? "#94a3b8" : "#0d9488",
+                          color: "#fff",
+                          border: "none",
+                          gap: 6,
+                          alignSelf: "flex-start",
+                        }}
+                      >
+                        {saving
+                          ? <><Loader2 style={{ width: 14, height: 14 }} className="animate-spin" />Guardando...</>
+                          : <><Save style={{ width: 14, height: 14 }} />Guardar MSDS</>
+                        }
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
