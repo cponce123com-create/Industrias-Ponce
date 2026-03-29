@@ -250,11 +250,10 @@ export default function MsdsPage() {
             ${pictoHtml}
           </div>
           <div style="display:flex;align-items:center;gap:0;border-bottom:1px solid #eee;">
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=52x52&data=${encodeURIComponent(p.msdsUrl!)}" width="52" height="52" alt="QR" style="flex-shrink:0;display:block;border-right:1px solid #eee;">
-            <div style="flex:1;min-width:0;padding:4px 6px;background:${color}10;">
-              <div style="font-size:7px;font-weight:bold;color:${color};letter-spacing:0.3px;margin-bottom:2px;">ESCANEA PARA VER MSDS COMPLETA</div>
-              <svg class="barcode-sm" data-code="${p.code}" style="width:100%;height:24px;display:block;"></svg>
-              <div style="font-size:7.5px;color:#555;margin-top:1px;text-align:center;">${p.code}</div>
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(p.msdsUrl!)}" width="80" height="80" alt="QR" style="flex-shrink:0;display:block;border-right:1px solid #eee;">
+            <div style="flex:1;min-width:0;padding:6px 8px;background:${color}10;display:flex;flex-direction:column;justify-content:center;gap:2px;">
+              <div style="font-size:7px;font-weight:bold;color:${color};letter-spacing:0.3px;">ESCANEA PARA VER MSDS COMPLETA</div>
+              <div style="font-size:9px;font-weight:bold;color:#1a1a2e;margin-top:4px;">${p.code}</div>
             </div>
           </div>
           ${firstAidHtml}
@@ -318,11 +317,8 @@ export default function MsdsPage() {
     var script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js';
     script.onload = function() {
-      document.querySelectorAll('.barcode-sm').forEach(function(el) {
-        JsBarcode(el, el.dataset.code, { format: 'CODE128', displayValue: false, height: 25, margin: 0, width: 1.2 });
-      });
       document.querySelectorAll('.barcode-lg').forEach(function(el) {
-        JsBarcode(el, el.dataset.code, { format: 'CODE128', displayValue: false, height: 35, margin: 0, width: 1.2 });
+        JsBarcode(el, el.dataset.code, { format: 'CODE128', displayValue: false, height: 32, margin: 0, width: 1.4 });
       });
       barcodeReady = true;
       tryPrint(barcodeReady, imgsDone);
