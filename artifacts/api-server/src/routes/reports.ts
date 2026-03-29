@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 import { db } from "@workspace/db";
 import {
   productsTable, inventoryRecordsTable, immobilizedProductsTable,
-  samplesTable, finalDispositionTable, eppMasterTable, eppDeliveriesTable, personnelTable,
+  samplesTable, finalDispositionTable, eppMasterTable, eppDeliveriesTable, personnelTable, usersTable,
 } from "@workspace/db";
 import { count, sql, and, gte, lte, eq, desc } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
@@ -233,14 +233,19 @@ router.get("/export/:type", requireAuth, asyncHandler(async (req, res) => {
       productName: productsTable.name,
       recordDate: inventoryRecordsTable.recordDate,
       previousBalance: inventoryRecordsTable.previousBalance,
+      physicalCount: inventoryRecordsTable.physicalCount,
       inputs: inventoryRecordsTable.inputs,
       outputs: inventoryRecordsTable.outputs,
       finalBalance: inventoryRecordsTable.finalBalance,
+      registeredBy: inventoryRecordsTable.registeredBy,
+      registeredByName: usersTable.name,
+      registeredByEmail: usersTable.email,
     }).from(inventoryRecordsTable)
-      .leftJoin(productsTable, sql`${inventoryRecordsTable.productId} = ${productsTable.id}`)
+      .innerJoin(productsTable, sql`${inventoryRecordsTable.productId} = ${productsTable.id}`)
+      .leftJoin(usersTable, sql`${inventoryRecordsTable.registeredBy} = ${usersTable.id}`)
       .orderBy(desc(inventoryRecordsTable.recordDate));
 
-    // Last inventory record date per product
+    // Last consumption date per product (most recent inventory record date)
     const lcRows = await db.execute(sql`
       SELECT ir.product_id, MAX(ir.record_date) AS last_consumption_date
       FROM inventory_records ir
@@ -250,12 +255,22 @@ router.get("/export/:type", requireAuth, asyncHandler(async (req, res) => {
     for (const row of lcRows.rows as { product_id: string; last_consumption_date: string | null }[]) {
       if (row.last_consumption_date) lcMapRep.set(row.product_id, row.last_consumption_date);
     }
-    data = records.map(r => ({
-      "Código": r.productCode, "Producto": r.productName, "Fecha": r.recordDate,
-      "Saldo Anterior": r.previousBalance, "Entradas": r.inputs,
-      "Salidas": r.outputs, "Saldo Final": r.finalBalance,
-      "Últ. Consumo": r.productId ? (lcMapRep.get(r.productId) ?? "") : "",
-    }));
+    data = records.map(r => {
+      const saldoSistema = parseFloat(r.previousBalance ?? "0") || 0;
+      const saldoFisico = r.physicalCount != null ? (parseFloat(r.physicalCount) || 0) : null;
+      const diferencia = saldoFisico != null ? saldoFisico - saldoSistema : null;
+      const operario = r.registeredByName ?? r.registeredByEmail ?? r.registeredBy ?? "";
+      return {
+        "Código": r.productCode,
+        "Producto": r.productName,
+        "Fecha": r.recordDate,
+        "Saldo Sistema": saldoSistema,
+        "Saldo Físico": saldoFisico ?? "",
+        "Diferencia": diferencia ?? "",
+        "Últ. Consumo": r.productId ? (lcMapRep.get(r.productId) ?? "") : "",
+        "Operario": operario,
+      };
+    });
     sheetName = "Inventario";
   } else if (type === "immobilized") {
     const records = await db.select({
