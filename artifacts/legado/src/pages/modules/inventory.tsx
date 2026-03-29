@@ -41,19 +41,19 @@ interface BalanceRecord {
   ultimoConsumo?: string | null;
 }
 
-function sinMovimiento(dateStr: string | null | undefined): { label: string; color: string } {
-  if (!dateStr) return { label: "—", color: "text-slate-300" };
+function sinMovimiento(dateStr: string | null | undefined): { label: string; color: string; bg: string; pill: string } {
+  if (!dateStr) return { label: "—", color: "text-slate-300", bg: "bg-slate-50", pill: "bg-slate-100 text-slate-400" };
   const d = new Date(dateStr + "T00:00:00");
-  if (isNaN(d.getTime())) return { label: "—", color: "text-slate-300" };
+  if (isNaN(d.getTime())) return { label: "—", color: "text-slate-300", bg: "bg-slate-50", pill: "bg-slate-100 text-slate-400" };
   const days = Math.floor((Date.now() - d.getTime()) / 86400000);
-  if (days < 0) return { label: "—", color: "text-slate-300" };
+  if (days < 0) return { label: "—", color: "text-slate-300", bg: "bg-slate-50", pill: "bg-slate-100 text-slate-400" };
   const months = days / 30.44;
-  if (months < 6) return { label: `${Math.round(months)}m`, color: "text-emerald-600" };
-  if (months < 12) return { label: `${Math.round(months)}m`, color: "text-amber-500" };
+  if (months < 6) return { label: `${Math.round(months)}m`, color: "text-emerald-600", bg: "bg-emerald-50", pill: "bg-emerald-100 text-emerald-700" };
+  if (months < 12) return { label: `${Math.round(months)}m`, color: "text-amber-500", bg: "bg-amber-50", pill: "bg-amber-100 text-amber-700" };
   const years = Math.floor(months / 12);
   const rem = Math.floor(months % 12);
   const label = rem > 0 ? `${years}a ${rem}m` : `${years}a`;
-  return { label, color: "text-red-500" };
+  return { label, color: "text-red-500", bg: "bg-red-50", pill: "bg-red-100 text-red-700" };
 }
 interface BoxEntry { weight: string; lot: string; }
 
@@ -699,20 +699,37 @@ export default function TomaDeInventarioPage() {
               </div>
 
               {/* Saldo en sistema (auto-cargado) */}
-              {form.productId && (
-                <div className="bg-slate-50 rounded-lg px-4 py-3 flex items-center justify-between border border-slate-100">
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500">Saldo en sistema (último SA)</p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      {productMap[form.productId]?.unit ?? ""}
-                      {form.previousBalance ? "" : " · Sin saldo actualizado registrado"}
-                    </p>
+              {form.productId && (() => {
+                const product = productMap[form.productId];
+                const balance = balanceByCode[product?.code ?? ""];
+                const uc = balance?.ultimoConsumo ?? null;
+                const sm = sinMovimiento(uc);
+                return (
+                  <div className="rounded-lg border border-slate-100 overflow-hidden">
+                    <div className="bg-slate-50 px-4 py-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500">Saldo en sistema (último SA)</p>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {product?.unit ?? ""}
+                          {form.previousBalance ? "" : " · Sin saldo actualizado registrado"}
+                        </p>
+                      </div>
+                      <span className="text-2xl font-bold text-slate-800 font-mono">
+                        {form.previousBalance ? parseFloat(form.previousBalance).toFixed(2) : <span className="text-slate-300">—</span>}
+                      </span>
+                    </div>
+                    <div className={`px-4 py-2.5 flex items-center justify-between border-t border-slate-100 ${sm.bg}`}>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500">Tiempo sin movimiento</p>
+                        {uc && <p className="text-xs text-slate-400 mt-0.5">Último: {uc}</p>}
+                      </div>
+                      <span className={`text-sm font-bold px-3 py-1 rounded-full ${sm.pill}`}>
+                        {sm.label === "—" ? "Sin datos" : sm.label}
+                      </span>
+                    </div>
                   </div>
-                  <span className="text-2xl font-bold text-slate-800 font-mono">
-                    {form.previousBalance ? parseFloat(form.previousBalance).toFixed(2) : <span className="text-slate-300">—</span>}
-                  </span>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Tabla de cajas */}
               <div>

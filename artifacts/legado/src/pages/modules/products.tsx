@@ -55,6 +55,7 @@ import {
   FileSpreadsheet,
   CheckCircle2,
   XCircle,
+  Clock,
 } from "lucide-react";
 
 interface Product {
@@ -84,6 +85,27 @@ interface Product {
 }
 
 type ProductFormData = Omit<Product, "id" | "createdAt" | "updatedAt">;
+
+interface BalanceRecord {
+  code: string;
+  quantity: string;
+  ultimoConsumo?: string | null;
+}
+
+function sinMovimiento(dateStr: string | null | undefined): { label: string; color: string; pill: string; bg: string } {
+  if (!dateStr) return { label: "—", color: "text-slate-300", pill: "bg-slate-100 text-slate-400", bg: "bg-slate-50" };
+  const d = new Date(dateStr + "T00:00:00");
+  if (isNaN(d.getTime())) return { label: "—", color: "text-slate-300", pill: "bg-slate-100 text-slate-400", bg: "bg-slate-50" };
+  const days = Math.floor((Date.now() - d.getTime()) / 86400000);
+  if (days < 0) return { label: "—", color: "text-slate-300", pill: "bg-slate-100 text-slate-400", bg: "bg-slate-50" };
+  const months = days / 30.44;
+  if (months < 6) return { label: `${Math.round(months)}m`, color: "text-emerald-600", pill: "bg-emerald-100 text-emerald-700", bg: "bg-emerald-50" };
+  if (months < 12) return { label: `${Math.round(months)}m`, color: "text-amber-500", pill: "bg-amber-100 text-amber-700", bg: "bg-amber-50" };
+  const years = Math.floor(months / 12);
+  const rem = Math.floor(months % 12);
+  const label = rem > 0 ? `${years}a ${rem}m` : `${years}a`;
+  return { label, color: "text-red-500", pill: "bg-red-100 text-red-700", bg: "bg-red-50" };
+}
 
 const CATEGORIES = [
   "Ácido", "Base", "Solvente", "Oxidante", "Reactivo",
@@ -697,6 +719,21 @@ export default function MaestrodeProductosPage() {
     queryFn: () => fetchProducts(warehouse),
   });
 
+  const { data: latestBalances = [] } = useQuery<BalanceRecord[]>({
+    queryKey: ["/api/balances/latest", warehouse],
+    queryFn: async () => {
+      const params = warehouse && warehouse !== "all" ? `?warehouse=${warehouse}` : "";
+      const res = await fetch(`${BASE}/api/balances/latest${params}`, { headers: getAuthHeaders() });
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const balanceByCode = useMemo(
+    () => Object.fromEntries(latestBalances.map((b: BalanceRecord) => [b.code, b])),
+    [latestBalances]
+  );
+
   const createMutation = useMutation({
     mutationFn: createProduct,
     onSuccess: () => {
@@ -937,6 +974,9 @@ export default function MaestrodeProductosPage() {
                     <TableHead className="font-semibold text-slate-600 w-32">Clase Peligro</TableHead>
                     <TableHead className="font-semibold text-slate-600 w-28 text-right">Stock Min/Max</TableHead>
                     <TableHead className="font-semibold text-slate-600 w-16 text-center">MSDS</TableHead>
+                    <TableHead className="font-semibold text-slate-600 w-28 text-center">
+                      <span className="flex items-center justify-center gap-1"><Clock className="w-3.5 h-3.5" />Movilidad</span>
+                    </TableHead>
                     <TableHead className="font-semibold text-slate-600 w-24">Estado</TableHead>
                     {(canWrite || canDelete) && (
                       <TableHead className="font-semibold text-slate-600 w-24 text-right">Acciones</TableHead>
@@ -1002,6 +1042,17 @@ export default function MaestrodeProductosPage() {
                           ? <CheckCircle2 className="w-4 h-4 text-emerald-500 mx-auto" />
                           : <XCircle className="w-4 h-4 text-slate-200 mx-auto" />
                         }
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {(() => {
+                          const bal = balanceByCode[product.code];
+                          const sm = sinMovimiento(bal?.ultimoConsumo);
+                          return (
+                            <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${sm.pill}`} title={bal?.ultimoConsumo ? `Último movimiento: ${bal.ultimoConsumo}` : "Sin datos de movimiento"}>
+                              {sm.label}
+                            </span>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={product.status} />
