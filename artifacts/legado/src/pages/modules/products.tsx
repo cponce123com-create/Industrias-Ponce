@@ -76,6 +76,7 @@ interface Product {
   notes?: string | null;
   status: "active" | "inactive";
   msds?: boolean | null;
+  msdsUrl?: string | null;
   controlled?: boolean | null;
   hazardLevel?: string | null;
   hazardPictograms?: string | null;
@@ -1038,10 +1039,25 @@ export default function MaestrodeProductosPage() {
                         </span>
                       </TableCell>
                       <TableCell className="text-center">
-                        {product.msds
-                          ? <CheckCircle2 className="w-4 h-4 text-emerald-500 mx-auto" />
-                          : <XCircle className="w-4 h-4 text-slate-200 mx-auto" />
-                        }
+                        {product.msds ? (
+                          <a
+                            href={product.msdsUrl ?? undefined}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={product.msdsUrl ? "cursor-pointer" : "cursor-default pointer-events-none"}
+                            title={product.msdsUrl ? `Ver MSDS: ${product.msdsUrl}` : "MSDS registrada (sin URL)"}
+                          >
+                            <span className="inline-block text-xs font-semibold px-2 py-0.5 rounded-full"
+                              style={{ background: "#dcfce7", color: "#16a34a" }}>
+                              Con MSDS
+                            </span>
+                          </a>
+                        ) : (
+                          <span className="inline-block text-xs font-semibold px-2 py-0.5 rounded-full"
+                            style={{ background: "#fee2e2", color: "#dc2626" }}>
+                            Sin MSDS
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="text-center">
                         {(() => {
