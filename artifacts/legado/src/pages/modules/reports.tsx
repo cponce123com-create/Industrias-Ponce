@@ -51,10 +51,33 @@ const STATUSES: Record<ReportType, { label: string; value: string }[]> = {
   "epp-alerts": [],
 };
 
+function fmtDate(d: unknown): string {
+  if (!d || typeof d !== "string") return "—";
+  const parts = d.split("T")[0].split("-");
+  if (parts.length !== 3) return d;
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
 function AlertBadge({ level }: { level: string }) {
   if (level === "overdue") return <Badge className="bg-red-100 text-red-700 border-red-200 hover:bg-red-100 text-xs">Vencido</Badge>;
   if (level === "due") return <Badge className="bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100 text-xs">Urgente</Badge>;
   return <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-xs">Próximo</Badge>;
+}
+
+function InventoryEstadoBadge({ sys, phys }: { sys: unknown; phys: unknown }) {
+  const sysVal = parseFloat(sys as string) || 0;
+  const physVal = phys != null && phys !== "" ? parseFloat(phys as string) : null;
+  if (physVal === null) return <span className="text-xs text-slate-400">—</span>;
+  const diff = physVal - sysVal;
+  if (Math.abs(diff) < 0.001) return (
+    <span style={{ background: "#dcfce7", color: "#15803d", padding: "2px 10px", borderRadius: 9999, fontSize: 11, fontWeight: 600 }}>Cuadrado</span>
+  );
+  if (diff > 0) return (
+    <span style={{ background: "#dbeafe", color: "#1d4ed8", padding: "2px 10px", borderRadius: 9999, fontSize: 11, fontWeight: 600 }}>Sobrante</span>
+  );
+  return (
+    <span style={{ background: "#fee2e2", color: "#dc2626", padding: "2px 10px", borderRadius: 9999, fontSize: 11, fontWeight: 600 }}>Faltante</span>
+  );
 }
 
 function ReportTable({ type, data }: { type: ReportType; data: Record<string, unknown>[] }) {
@@ -72,24 +95,37 @@ function ReportTable({ type, data }: { type: ReportType; data: Record<string, un
           <TableHead>Código</TableHead>
           <TableHead>Producto</TableHead>
           <TableHead>Fecha</TableHead>
-          <TableHead className="text-right">Saldo Ant.</TableHead>
-          <TableHead className="text-right">Entradas</TableHead>
-          <TableHead className="text-right">Salidas</TableHead>
-          <TableHead className="text-right">Saldo Final</TableHead>
+          <TableHead className="text-right">Saldo Sistema</TableHead>
+          <TableHead className="text-right">Saldo Físico</TableHead>
+          <TableHead className="text-right">Diferencia</TableHead>
+          <TableHead className="text-center">Estado</TableHead>
+          <TableHead>Últ. Consumo</TableHead>
+          <TableHead>Operario</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {data.map((r, i) => (
-          <TableRow key={i}>
-            <TableCell className="font-mono text-xs">{r.productCode as string}</TableCell>
-            <TableCell className="text-sm">{r.productName as string}</TableCell>
-            <TableCell className="text-sm text-slate-500">{r.recordDate as string}</TableCell>
-            <TableCell className="text-right font-mono text-sm">{r.previousBalance as string}</TableCell>
-            <TableCell className="text-right font-mono text-sm text-emerald-600">{r.inputs as string}</TableCell>
-            <TableCell className="text-right font-mono text-sm text-red-600">{r.outputs as string}</TableCell>
-            <TableCell className="text-right font-mono text-sm font-bold">{r.finalBalance as string}</TableCell>
-          </TableRow>
-        ))}
+        {data.map((r, i) => {
+          const sys = parseFloat(r.previousBalance as string) || 0;
+          const phys = r.physicalCount != null && r.physicalCount !== "" ? parseFloat(r.physicalCount as string) : null;
+          const diff = phys != null ? phys - sys : null;
+          return (
+            <TableRow key={i}>
+              <TableCell className="font-mono text-xs">{r.productCode as string}</TableCell>
+              <TableCell className="text-sm">{r.productName as string}</TableCell>
+              <TableCell className="text-sm text-slate-500">{fmtDate(r.recordDate)}</TableCell>
+              <TableCell className="text-right font-mono text-sm">{sys.toFixed(2)}</TableCell>
+              <TableCell className="text-right font-mono text-sm">{phys != null ? phys.toFixed(2) : "—"}</TableCell>
+              <TableCell className={`text-right font-mono text-sm font-semibold ${diff == null ? "" : diff < 0 ? "text-red-600" : diff > 0 ? "text-blue-600" : "text-emerald-600"}`}>
+                {diff != null ? (diff >= 0 ? `+${diff.toFixed(2)}` : diff.toFixed(2)) : "—"}
+              </TableCell>
+              <TableCell className="text-center">
+                <InventoryEstadoBadge sys={r.previousBalance} phys={r.physicalCount} />
+              </TableCell>
+              <TableCell className="text-sm text-slate-500">{fmtDate(r.lastConsumptionDate)}</TableCell>
+              <TableCell className="text-sm text-slate-500">{(r.operario as string) || "—"}</TableCell>
+            </TableRow>
+          );
+        })}
       </TableBody>
     </Table>
   );
@@ -113,7 +149,7 @@ function ReportTable({ type, data }: { type: ReportType; data: Record<string, un
             <TableCell className="text-sm">{r.productName as string}</TableCell>
             <TableCell className="text-right font-mono text-sm">{r.quantity as string}</TableCell>
             <TableCell className="text-sm text-slate-500">{r.reason as string}</TableCell>
-            <TableCell className="text-sm text-slate-500">{r.immobilizedDate as string}</TableCell>
+            <TableCell className="text-sm text-slate-500">{fmtDate(r.immobilizedDate)}</TableCell>
             <TableCell><Badge className="text-xs">{r.status as string}</Badge></TableCell>
           </TableRow>
         ))}
@@ -141,7 +177,7 @@ function ReportTable({ type, data }: { type: ReportType; data: Record<string, un
             <TableCell className="text-sm">{(r.productName as string) ?? "—"}</TableCell>
             <TableCell className="text-sm text-slate-500">{(r.supplier as string) ?? "—"}</TableCell>
             <TableCell className="text-right font-mono text-sm">{r.quantity as string} {r.unit as string}</TableCell>
-            <TableCell className="text-sm text-slate-500">{r.sampleDate as string}</TableCell>
+            <TableCell className="text-sm text-slate-500">{fmtDate(r.sampleDate)}</TableCell>
             <TableCell className="text-sm">{r.purpose as string}</TableCell>
             <TableCell><Badge className="text-xs">{r.status as string}</Badge></TableCell>
           </TableRow>
@@ -169,7 +205,7 @@ function ReportTable({ type, data }: { type: ReportType; data: Record<string, un
             <TableCell className="text-sm">{(r.productDisplayName as string) ?? (r.productName as string) ?? (r.productNameManual as string) ?? "—"}</TableCell>
             <TableCell className="text-right font-mono text-sm">{r.quantity as string} {r.unit as string}</TableCell>
             <TableCell className="text-sm">{r.dispositionType as string}</TableCell>
-            <TableCell className="text-sm text-slate-500">{r.dispositionDate as string}</TableCell>
+            <TableCell className="text-sm text-slate-500">{fmtDate(r.dispositionDate)}</TableCell>
             <TableCell className="text-sm text-slate-500">{(r.contractor as string) ?? "—"}</TableCell>
             <TableCell className="text-right font-mono text-sm">{r.cost ? `S/. ${parseFloat(r.cost as string).toFixed(2)}` : "—"}</TableCell>
             <TableCell><Badge className="text-xs">{r.status as string}</Badge></TableCell>
@@ -201,9 +237,9 @@ function ReportTable({ type, data }: { type: ReportType; data: Record<string, un
             </TableCell>
             <TableCell className="text-sm">{r.personnelName as string}</TableCell>
             <TableCell className="text-sm text-slate-500">{(r.personnelDepartment as string) ?? "—"}</TableCell>
-            <TableCell className="text-sm text-slate-500">{r.deliveryDate as string}</TableCell>
+            <TableCell className="text-sm text-slate-500">{fmtDate(r.deliveryDate)}</TableCell>
             <TableCell className="text-center font-mono text-sm">{r.quantity as string}</TableCell>
-            <TableCell className="text-sm text-slate-500">{(r.nextReplacementDate as string) ?? "—"}</TableCell>
+            <TableCell className="text-sm text-slate-500">{r.nextReplacementDate ? fmtDate(r.nextReplacementDate) : "—"}</TableCell>
             <TableCell>
               {r.alertLevel && r.alertLevel !== "ok" ? <AlertBadge level={r.alertLevel as string} /> : <span className="text-xs text-slate-400">OK</span>}
             </TableCell>
@@ -233,8 +269,8 @@ function ReportTable({ type, data }: { type: ReportType; data: Record<string, un
               <p className="text-xs text-slate-400">{r.eppCode as string}</p>
             </TableCell>
             <TableCell className="text-sm">{r.personnelName as string}</TableCell>
-            <TableCell className="text-sm text-slate-500">{r.deliveryDate as string}</TableCell>
-            <TableCell className="text-sm font-medium">{r.nextReplacementDate as string}</TableCell>
+            <TableCell className="text-sm text-slate-500">{fmtDate(r.deliveryDate)}</TableCell>
+            <TableCell className="text-sm font-medium">{fmtDate(r.nextReplacementDate)}</TableCell>
             <TableCell className={`text-right font-mono text-sm font-bold ${(r.daysUntilReplacement as number) < 0 ? "text-red-600" : "text-orange-600"}`}>
               {(r.daysUntilReplacement as number) < 0
                 ? `+${Math.abs(r.daysUntilReplacement as number)} venc.`

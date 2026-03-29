@@ -11,6 +11,13 @@ import { asyncHandler } from "../lib/async-handler.js";
 
 const router = Router();
 
+function fmtDate(d: string | null | undefined): string {
+  if (!d) return "";
+  const parts = d.split("T")[0].split("-");
+  if (parts.length !== 3) return d;
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
 function buildDateFilter(col: unknown, from?: string, to?: string) {
   const filters = [];
   if (from) filters.push(gte(col as Parameters<typeof gte>[0], from));
@@ -38,20 +45,34 @@ router.get("/summary", requireAuth, asyncHandler(async (_req, res) => {
 router.get("/inventory", requireAuth, asyncHandler(async (req, res) => {
   const { from, to, product } = req.query as Record<string, string | undefined>;
   const records = await db.select({
+    productId: inventoryRecordsTable.productId,
     productCode: productsTable.code,
     productName: productsTable.name,
     unit: productsTable.unit,
-    location: productsTable.location,
-    minimumStock: productsTable.minimumStock,
     recordDate: inventoryRecordsTable.recordDate,
     previousBalance: inventoryRecordsTable.previousBalance,
+    physicalCount: inventoryRecordsTable.physicalCount,
     inputs: inventoryRecordsTable.inputs,
     outputs: inventoryRecordsTable.outputs,
     finalBalance: inventoryRecordsTable.finalBalance,
     notes: inventoryRecordsTable.notes,
+    registeredByName: usersTable.name,
+    registeredByEmail: usersTable.email,
   }).from(inventoryRecordsTable)
-    .leftJoin(productsTable, sql`${inventoryRecordsTable.productId} = ${productsTable.id}`)
+    .innerJoin(productsTable, sql`${inventoryRecordsTable.productId} = ${productsTable.id}`)
+    .leftJoin(usersTable, sql`${inventoryRecordsTable.registeredBy} = ${usersTable.id}`)
     .orderBy(desc(inventoryRecordsTable.recordDate), productsTable.code);
+
+  // Last consumption date per product
+  const lcRows = await db.execute(sql`
+    SELECT ir.product_id, MAX(ir.record_date) AS last_consumption_date
+    FROM inventory_records ir
+    GROUP BY ir.product_id
+  `);
+  const lcMap = new Map<string, string>();
+  for (const row of lcRows.rows as { product_id: string; last_consumption_date: string | null }[]) {
+    if (row.last_consumption_date) lcMap.set(row.product_id, row.last_consumption_date);
+  }
 
   let filtered = records;
   if (from) filtered = filtered.filter(r => !r.recordDate || r.recordDate >= from);
@@ -60,7 +81,12 @@ router.get("/inventory", requireAuth, asyncHandler(async (req, res) => {
     r.productCode?.toLowerCase().includes(product.toLowerCase()) ||
     r.productName?.toLowerCase().includes(product.toLowerCase())
   );
-  res.json(filtered);
+
+  res.json(filtered.map(r => ({
+    ...r,
+    lastConsumptionDate: r.productId ? (lcMap.get(r.productId) ?? null) : null,
+    operario: r.registeredByName ?? r.registeredByEmail ?? "",
+  })));
 }));
 
 router.get("/immobilized", requireAuth, asyncHandler(async (req, res) => {
@@ -260,14 +286,21 @@ router.get("/export/:type", requireAuth, asyncHandler(async (req, res) => {
       const saldoFisico = r.physicalCount != null ? (parseFloat(r.physicalCount) || 0) : null;
       const diferencia = saldoFisico != null ? saldoFisico - saldoSistema : null;
       const operario = r.registeredByName ?? r.registeredByEmail ?? r.registeredBy ?? "";
+      let estado = "";
+      if (saldoFisico != null) {
+        if (Math.abs(diferencia ?? 0) < 0.001) estado = "Cuadrado";
+        else if ((diferencia ?? 0) > 0) estado = "Sobrante";
+        else estado = "Faltante";
+      }
       return {
         "Código": r.productCode,
         "Producto": r.productName,
-        "Fecha": r.recordDate,
+        "Fecha": fmtDate(r.recordDate),
         "Saldo Sistema": saldoSistema,
         "Saldo Físico": saldoFisico ?? "",
         "Diferencia": diferencia ?? "",
-        "Últ. Consumo": r.productId ? (lcMapRep.get(r.productId) ?? "") : "",
+        "Estado": estado,
+        "Últ. Consumo": r.productId ? fmtDate(lcMapRep.get(r.productId)) : "",
         "Operario": operario,
       };
     });
@@ -282,7 +315,7 @@ router.get("/export/:type", requireAuth, asyncHandler(async (req, res) => {
       .orderBy(desc(immobilizedProductsTable.immobilizedDate));
     data = records.map(r => ({
       "Código": r.productCode, "Producto": r.productName, "Cantidad": r.quantity,
-      "Motivo": r.reason, "Estado": r.status, "Fecha Inmovilización": r.immobilizedDate,
+      "Motivo": r.reason, "Estado": r.status, "Fecha Inmovilización": fmtDate(r.immobilizedDate),
     }));
     sheetName = "Inmovilizados";
   } else if (type === "samples") {
@@ -290,7 +323,7 @@ router.get("/export/:type", requireAuth, asyncHandler(async (req, res) => {
     data = records.map(r => ({
       "Código Muestra": r.sampleCode, "Producto": r.productName ?? r.productId,
       "Proveedor": r.supplier, "Cantidad": r.quantity, "Unidad": r.unit,
-      "Fecha": r.sampleDate, "Propósito": r.purpose, "Estado": r.status,
+      "Fecha": fmtDate(r.sampleDate), "Propósito": r.purpose, "Estado": r.status,
       "Lab. Referencia": r.labReference, "Resultado": r.result,
     }));
     sheetName = "Muestras";
@@ -307,7 +340,7 @@ router.get("/export/:type", requireAuth, asyncHandler(async (req, res) => {
       .orderBy(desc(finalDispositionTable.dispositionDate));
     data = records.map(r => ({
       "Producto": r.productName ?? r.productNameManual, "Cantidad": r.quantity, "Unidad": r.unit,
-      "Tipo Disposición": r.dispositionType, "Fecha": r.dispositionDate,
+      "Tipo Disposición": r.dispositionType, "Fecha": fmtDate(r.dispositionDate),
       "Empresa": r.contractor, "Manifiesto": r.manifestNumber,
       "Estado": r.status, "Costo": r.cost,
     }));
@@ -332,8 +365,8 @@ router.get("/export/:type", requireAuth, asyncHandler(async (req, res) => {
       }
       return {
         "Código EPP": r.eppCode, "Nombre EPP": r.eppName, "Operario": r.personnelName,
-        "Fecha Entrega": r.deliveryDate, "Cantidad": r.quantity, "Condición": r.condition,
-        "Período Reposición (días)": r.replacementPeriodDays, "Próxima Reposición": nextReplacement,
+        "Fecha Entrega": fmtDate(r.deliveryDate), "Cantidad": r.quantity, "Condición": r.condition,
+        "Período Reposición (días)": r.replacementPeriodDays, "Próxima Reposición": fmtDate(nextReplacement),
       };
     });
     sheetName = "Entregas EPP";
