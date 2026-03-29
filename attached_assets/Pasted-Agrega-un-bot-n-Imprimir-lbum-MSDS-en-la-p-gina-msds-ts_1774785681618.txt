@@ -1,0 +1,64 @@
+Agrega un botón "Imprimir Álbum MSDS" en la página msds.tsx, visible arriba del buscador. Al hacer clic debe abrir una ventana de impresión con todas los productos que tienen MSDS del almacén actualmente seleccionado, organizados en un álbum de 6 tarjetas por hoja A4.
+Datos a usar:
+Filtra de la lista de productos ya cargada los que tengan msds: true y msdsUrl con valor. Pásalos todos a la ventana de impresión como JSON serializado en el HTML.
+Layout de la ventana de impresión:
+css@page { size: A4 portrait; margin: 1cm; }
+body { margin: 0; font-family: Arial, sans-serif; }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.card {
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+Cada tarjeta contiene de arriba hacia abajo:
+
+Nombre del producto en font-size: 11px; font-weight: bold; text-align: center; max-height: 2.4em; overflow: hidden;
+Código en font-size: 10px; color: #555;
+QR de 90×90px generado con https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=<msdsUrl>
+Código de barras Code128 con JsBarcode usando el código del producto, height: 30, displayValue: false
+
+Cada 6 tarjetas se inserta un salto de página:
+css.page-break { break-after: page; page-break-after: always; }
+Agrupa los productos en chunks de 6 con JS y cierra cada grupo con un <div class="page-break">.
+Encabezado por hoja — repite en cada página un header con:
+css.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 2px solid #333; padding-bottom: 6px; }
+Con texto izquierdo: "Álbum MSDS — <nombre del almacén>" en bold 13px, y texto derecho: fecha actual en 11px gris. Usa position: running(header) si el navegador lo soporta, o simplemente repite el div de header al inicio de cada grupo de 6.
+Pie de página por hoja:
+css.footer { font-size: 9px; color: #aaa; text-align: center; margin-top: 8px; }
+Texto: "Documento generado el <fecha> — Solo para uso interno de emergencia"
+Script de inicialización:
+js// Cargar JsBarcode desde CDN
+// Esperar a que cargue antes de imprimir
+const script = document.createElement('script');
+script.src = 'https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js';
+script.onload = function() {
+  document.querySelectorAll('.barcode').forEach(el => {
+    JsBarcode(el, el.dataset.code, {
+      format: 'CODE128',
+      displayValue: false,
+      height: 30,
+      margin: 0,
+      width: 1.2
+    });
+  });
+  window.print();
+};
+document.head.appendChild(script);
+Cada <svg class="barcode" data-code="${product.code}"> se inicializa con ese script.
+CSS adicional:
+css@media print {
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .no-print { display: none; }
+}
+```
+
+Muestra antes de imprimir (con clase `no-print`) el mensaje:
+```
+⚠️ Verifica que el diálogo de impresión tenga: Tamaño A4 · Orientación Vertical · Márgenes: 1cm
+No cambies nada más del proyecto.

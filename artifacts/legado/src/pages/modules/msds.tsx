@@ -6,7 +6,7 @@ import { useWarehouse, WAREHOUSES, type Warehouse as WarehouseType } from "@/con
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, ShieldCheck, ShieldOff, Download, Printer, AlertCircle, Loader2, Save } from "lucide-react";
+import { Search, ShieldCheck, ShieldOff, Download, Printer, AlertCircle, Loader2, Save, BookOpen } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
 interface Product {
@@ -169,6 +169,100 @@ export default function MsdsPage() {
     win.document.close();
   }
 
+  function handlePrintAlbum() {
+    const withMsds = products.filter((p) => p.msds && p.msdsUrl);
+    if (withMsds.length === 0) return;
+
+    const win = window.open("", "_blank", "width=800,height=600");
+    if (!win) return;
+
+    const warehouseLabel = warehouse === "all" || !warehouse ? "Todos los almacenes" : warehouse;
+    const dateStr = new Date().toLocaleDateString("es-PE", { year: "numeric", month: "long", day: "numeric" });
+
+    const chunks: Product[][] = [];
+    for (let i = 0; i < withMsds.length; i += 6) chunks.push(withMsds.slice(i, i + 6));
+
+    const pagesHtml = chunks.map((chunk) => {
+      const cards = chunk.map((p) => `
+        <div class="card">
+          <div class="prod-name">${p.name}</div>
+          <div class="prod-code">${p.code}</div>
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=${encodeURIComponent(p.msdsUrl!)}" width="90" height="90" alt="QR">
+          <svg class="barcode" data-code="${p.code}"></svg>
+        </div>`).join("");
+
+      return `
+        <div class="header">
+          <span class="header-left">Álbum MSDS — ${warehouseLabel}</span>
+          <span class="header-right">${dateStr}</span>
+        </div>
+        <div class="grid">${cards}</div>
+        <div class="footer">Documento generado el ${dateStr} — Solo para uso interno de emergencia</div>
+        <div class="page-break"></div>`;
+    }).join("");
+
+    win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Álbum MSDS — ${warehouseLabel}</title>
+  <style>
+    @page { size: A4 portrait; margin: 1cm; }
+    @media print {
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .no-print { display: none; }
+    }
+    body { margin: 0; font-family: Arial, sans-serif; font-size: 12px; }
+    .no-print {
+      background: #fffbea; border-bottom: 1px solid #e5c700;
+      padding: 10px 16px; font-size: 12px; color: #555; text-align: center;
+    }
+    .header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 10px; border-bottom: 2px solid #333; padding-bottom: 6px;
+    }
+    .header-left { font-size: 13px; font-weight: bold; color: #111; }
+    .header-right { font-size: 11px; color: #888; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .card {
+      border: 1px solid #ccc; border-radius: 6px; padding: 10px;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      break-inside: avoid; page-break-inside: avoid;
+    }
+    .prod-name { font-size: 11px; font-weight: bold; text-align: center; max-height: 2.4em; overflow: hidden; }
+    .prod-code { font-size: 10px; color: #555; }
+    .barcode { display: block; }
+    .footer { font-size: 9px; color: #aaa; text-align: center; margin-top: 8px; }
+    .page-break { break-after: page; page-break-after: always; }
+  </style>
+</head>
+<body>
+  <div class="no-print">
+    ⚠️ Verifica que el diálogo de impresión tenga: <strong>Tamaño A4 · Orientación Vertical · Márgenes: 1 cm</strong>
+  </div>
+  ${pagesHtml}
+  <script>
+    var script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js';
+    script.onload = function() {
+      document.querySelectorAll('.barcode').forEach(function(el) {
+        JsBarcode(el, el.dataset.code, {
+          format: 'CODE128',
+          displayValue: false,
+          height: 30,
+          margin: 0,
+          width: 1.2
+        });
+      });
+      window.print();
+    };
+    document.head.appendChild(script);
+  <\/script>
+</body>
+</html>`);
+    win.document.close();
+  }
+
   const allWarehouses: (WarehouseType | "all")[] = ["all", ...WAREHOUSES];
 
   return (
@@ -237,7 +331,27 @@ export default function MsdsPage() {
 
           {/* Left: product list */}
           <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-            <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid #f1f5f9" }}>
+            <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid #f1f5f9", display: "flex", flexDirection: "column", gap: 10 }}>
+              <Button
+                onClick={handlePrintAlbum}
+                disabled={products.filter(p => p.msds && p.msdsUrl).length === 0}
+                style={{
+                  background: products.filter(p => p.msds && p.msdsUrl).length === 0 ? "#94a3b8" : "#0c1a2e",
+                  color: "#fff",
+                  border: "none",
+                  gap: 6,
+                  width: "100%",
+                  justifyContent: "center",
+                }}
+              >
+                <BookOpen style={{ width: 15, height: 15 }} />
+                Imprimir Álbum MSDS
+                {products.filter(p => p.msds && p.msdsUrl).length > 0 && (
+                  <span style={{ fontSize: 11, opacity: 0.8 }}>
+                    ({products.filter(p => p.msds && p.msdsUrl).length} productos)
+                  </span>
+                )}
+              </Button>
               <div style={{ position: "relative" }}>
                 <Search style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", width: 15, height: 15, color: "#94a3b8" }} />
                 <Input
