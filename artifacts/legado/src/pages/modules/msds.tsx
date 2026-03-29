@@ -95,34 +95,69 @@ export default function MsdsPage() {
 
   function handlePrintQr() {
     if (!selected || !selected.msdsUrl) return;
-    const win = window.open("", "_blank", "width=400,height=500");
+    const win = window.open("", "_blank", "width=420,height=320");
     if (!win) return;
     const svg = document.getElementById("msds-qr-svg")?.outerHTML ?? "";
-    win.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Etiqueta QR - ${selected.code}</title>
-        <style>
-          body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 16px; box-sizing: border-box; }
-          .qr-wrap { border: 2px solid #0d9488; border-radius: 12px; padding: 24px 32px; text-align: center; }
-          h2 { margin: 0 0 4px 0; font-size: 18px; color: #0c1a2e; }
-          p { margin: 0 0 16px 0; font-size: 13px; color: #64748b; }
-          svg { display: block; margin: 0 auto 12px auto; }
-          small { display: block; font-size: 11px; color: #94a3b8; margin-top: 8px; word-break: break-all; }
-        </style>
-      </head>
-      <body>
-        <div class="qr-wrap">
-          <h2>${selected.code}</h2>
-          <p>${selected.name}</p>
-          ${svg}
-          <small>${selected.msdsUrl}</small>
-        </div>
-        <script>window.onload = () => { window.print(); window.close(); }<\/script>
-      </body>
-      </html>
-    `);
+    win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Etiqueta QR - ${selected.code}</title>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script>
+  <style>
+    @page { size: 10cm 7.3cm; margin: 0; }
+    @media print { * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+    body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+    .label {
+      position: absolute; top: 0; left: 0;
+      width: 10cm; height: 7.3cm;
+      display: flex; flex-direction: row;
+      box-sizing: border-box;
+      padding: 6mm;
+      gap: 4mm;
+    }
+    .col-qr {
+      width: 45%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .col-qr svg { display: block; }
+    .col-info {
+      width: 55%;
+      display: flex; flex-direction: column; justify-content: center;
+      gap: 3px;
+    }
+    .msds-title { font-size: 22px; font-weight: 900; color: #0c1a2e; line-height: 1; margin: 0 0 4px 0; letter-spacing: -0.5px; }
+    .prod-name { font-size: 13px; font-weight: 700; color: #1e293b; word-break: break-word; line-height: 1.3; margin: 0 0 3px 0; }
+    .prod-code { font-size: 11px; color: #64748b; margin: 0 0 4px 0; }
+    .hint { font-size: 9px; color: #94a3b8; margin: 3px 0 0 0; line-height: 1.3; }
+    #barcode { display: block; width: 100%; max-width: 120px; }
+  </style>
+</head>
+<body>
+  <div class="label">
+    <div class="col-qr">${svg}</div>
+    <div class="col-info">
+      <p class="msds-title">MSDS</p>
+      <p class="prod-name">${selected.name}</p>
+      <p class="prod-code">${selected.code}</p>
+      <svg id="barcode"></svg>
+      <p class="hint">Escanea el QR para ver la ficha de seguridad</p>
+    </div>
+  </div>
+  <script>
+    window.onload = function() {
+      JsBarcode("#barcode", "${selected.code}", {
+        format: "CODE128",
+        displayValue: false,
+        height: 40,
+        margin: 0
+      });
+      window.print();
+    };
+  <\/script>
+</body>
+</html>`);
     win.document.close();
   }
 

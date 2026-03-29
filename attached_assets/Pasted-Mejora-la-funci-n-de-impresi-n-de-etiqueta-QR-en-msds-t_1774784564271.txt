@@ -1,0 +1,44 @@
+Mejora la función de impresión de etiqueta QR en msds.tsx. La etiqueta debe estar optimizada para imprimirse en una impresora laser HP P1102 en etiquetas físicas de 10 cm de ancho × 7.3 cm de alto (landscape/apaisado).
+Especificaciones de la etiqueta:
+La ventana de impresión debe generar un HTML con estos estilos de página:
+css@page {
+  size: 10cm 7.3cm;
+  margin: 0;
+}
+body {
+  margin: 0;
+  padding: 0;
+}
+La etiqueta debe posicionarse siempre en la parte superior de la página (position: absolute; top: 0; left: 0) para evitar que la impresora la desplace hacia abajo.
+Contenido y diseño de la etiqueta (todo en una caja de exactamente 10cm × 7.3cm):
+Layout en dos columnas:
+
+Columna izquierda (~45% del ancho): centrada verticalmente, muestra el QR code de 120×120px generado con la URL de la MSDS
+Columna derecha (~55% del ancho): de arriba hacia abajo:
+
+Logo o texto de encabezado: "MSDS" en letras grandes y bold (como título de sección)
+Nombre del producto en font-size ~13px, font-weight bold, con word-break: break-word
+Código del producto en font-size ~11px, color gris
+Un código de barras Code128 generado con la librería JsBarcode (cargada desde CDN https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js) usando el código del producto como valor, con displayValue: false y altura de 40px
+Texto pequeño debajo del código de barras: "Escanea el QR para ver la ficha de seguridad" en ~9px, color gris
+
+
+
+Lo que debes eliminar:
+
+Cualquier texto que muestre la URL o link de la MSDS
+Cualquier borde exterior o marco de la etiqueta (sin border)
+
+CSS adicional para impresión:
+css@media print {
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+La ventana debe ejecutar window.print() automáticamente al cargar (onload), y JsBarcode debe inicializarse antes del print con:
+jsJsBarcode("#barcode", "${product.code}", {
+  format: "CODE128",
+  displayValue: false,
+  height: 40,
+  margin: 0
+});
+window.print();
+No cambies nada más del módulo MSDS ni del resto del proyecto.
