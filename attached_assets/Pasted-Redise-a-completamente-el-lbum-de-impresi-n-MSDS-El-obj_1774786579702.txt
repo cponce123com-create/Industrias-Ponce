@@ -1,0 +1,132 @@
+Rediseña completamente el álbum de impresión MSDS. El objetivo es 6 tarjetas por hoja A4 que ocupen toda la página, distribuidas en 2 columnas × 3 filas, con diseño profesional y serio.
+Layout de página:
+css@page { size: A4 portrait; margin: 0.8cm; }
+body { margin: 0; padding: 0; font-family: 'Arial', sans-serif; background: white; }
+
+.page {
+  width: 100%;
+  height: 26.7cm; /* A4 alto (29.7cm) menos márgenes (2 × 0.8cm) = 28.1cm, descontando header/footer */
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(3, 1fr);
+  gap: 0.5cm;
+  box-sizing: border-box;
+}
+
+.page-break {
+  break-after: page;
+  page-break-after: always;
+}
+Diseño de cada tarjeta — debe ocupar exactamente su celda del grid, con aspecto profesional:
+css.card {
+  border: 1.5px solid #1a1a2e;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: row;  /* QR a la izquierda, info a la derecha */
+  align-items: stretch;
+  overflow: hidden;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.card-left {
+  background: #1a1a2e;
+  width: 3.2cm;
+  min-width: 3.2cm;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+}
+
+.card-left img { /* QR */ 
+  width: 80px;
+  height: 80px;
+  background: white;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.card-left .msds-label {
+  color: white;
+  font-size: 9px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.card-right {
+  flex: 1;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  background: white;
+}
+
+.card-right .product-name {
+  font-size: 12px;
+  font-weight: bold;
+  color: #1a1a2e;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.card-right .product-code {
+  font-size: 10px;
+  color: #666;
+  letter-spacing: 0.5px;
+}
+
+.card-right .barcode-wrap {
+  margin-top: 6px;
+}
+
+.card-right svg.barcode {
+  width: 100%;
+  height: 35px;
+}
+
+.card-right .scan-hint {
+  font-size: 8px;
+  color: #999;
+  margin-top: 4px;
+}
+Encabezado profesional (se repite una vez por grupo de 6, dentro del mismo .page):
+css.page-header {
+  grid-column: 1 / -1;  /* NO — el header va FUERA del grid, antes de cada .page div */
+}
+Estructura del header fuera del grid:
+html<div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #1a1a2e; padding-bottom:6px; margin-bottom:8px;">
+  <div>
+    <div style="font-size:15px; font-weight:bold; color:#1a1a2e; letter-spacing:1px;">FICHAS DE SEGURIDAD — MSDS</div>
+    <div style="font-size:10px; color:#666;">Almacén: <strong>${warehouseName}</strong> · Página ${pageNum} de ${totalPages}</div>
+  </div>
+  <div style="text-align:right; font-size:10px; color:#666;">
+    <div>Fecha de emisión: ${fecha}</div>
+    <div style="font-size:9px; color:#aaa;">Solo para uso interno</div>
+  </div>
+</div>
+Pie de página (fuera del grid, después de cada .page):
+html<div style="text-align:center; font-size:8px; color:#bbb; border-top:1px solid #eee; padding-top:4px; margin-top:6px;">
+  Documento confidencial de uso interno · En caso de emergencia contactar al responsable del almacén
+</div>
+Estructura HTML final por cada grupo de 6 productos:
+html<!-- BLOQUE POR CADA 6 PRODUCTOS -->
+<div style="...header..."></div>
+<div class="page">
+  <div class="card">...</div>  × 6
+</div>
+<div style="...footer..."></div>
+<div class="page-break"></div>
+Script JsBarcode — igual que antes, espera a que cargue antes de hacer window.print(). Cada barcode es un <svg class="barcode" data-code="...">.
+Eliminar completamente:
+
+Cualquier texto de comentario o instrucción visible en la página impresa
+El mensaje "⚠️ Verifica que el diálogo..."
+Cualquier fondo de color en body que no sea blanco
+
+No toques nada más del proyecto.

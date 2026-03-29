@@ -184,22 +184,40 @@ export default function MsdsPage() {
     const chunks: Product[][] = [];
     for (let i = 0; i < withMsds.length; i += 6) chunks.push(withMsds.slice(i, i + 6));
 
-    const pagesHtml = chunks.map((chunk) => {
+    const totalPages = chunks.length;
+    const pagesHtml = chunks.map((chunk, idx) => {
+      const pageNum = idx + 1;
       const cards = chunk.map((p) => `
         <div class="card">
-          <div class="prod-name">${p.name}</div>
-          <div class="prod-code">${p.code}</div>
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=${encodeURIComponent(p.msdsUrl!)}" width="90" height="90" alt="QR">
-          <svg class="barcode" data-code="${p.code}"></svg>
+          <div class="card-left">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(p.msdsUrl!)}" width="80" height="80" alt="QR">
+            <span class="msds-label">MSDS</span>
+          </div>
+          <div class="card-right">
+            <div class="product-name">${p.name}</div>
+            <div class="product-code">${p.code}</div>
+            <div class="barcode-wrap">
+              <svg class="barcode" data-code="${p.code}"></svg>
+            </div>
+            <div class="scan-hint">Escanea el QR para ver la ficha de seguridad</div>
+          </div>
         </div>`).join("");
 
       return `
-        <div class="header">
-          <span class="header-left">Álbum MSDS — ${warehouseLabel}</span>
-          <span class="header-right">${dateStr}</span>
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #1a1a2e;padding-bottom:6px;margin-bottom:8px;">
+          <div>
+            <div style="font-size:15px;font-weight:bold;color:#1a1a2e;letter-spacing:1px;">FICHAS DE SEGURIDAD — MSDS</div>
+            <div style="font-size:10px;color:#666;">Almacén: <strong>${warehouseLabel}</strong> · Página ${pageNum} de ${totalPages}</div>
+          </div>
+          <div style="text-align:right;font-size:10px;color:#666;">
+            <div>Fecha de emisión: ${dateStr}</div>
+            <div style="font-size:9px;color:#aaa;">Solo para uso interno</div>
+          </div>
         </div>
-        <div class="grid">${cards}</div>
-        <div class="footer">Documento generado el ${dateStr} — Solo para uso interno de emergencia</div>
+        <div class="page">${cards}</div>
+        <div style="text-align:center;font-size:8px;color:#bbb;border-top:1px solid #eee;padding-top:4px;margin-top:6px;">
+          Documento confidencial de uso interno · En caso de emergencia contactar al responsable del almacén
+        </div>
         <div class="page-break"></div>`;
     }).join("");
 
@@ -209,39 +227,59 @@ export default function MsdsPage() {
   <meta charset="utf-8">
   <title>Álbum MSDS — ${warehouseLabel}</title>
   <style>
-    @page { size: A4 portrait; margin: 1cm; }
-    @media print {
-      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .no-print { display: none; }
+    @page { size: A4 portrait; margin: 0.8cm; }
+    @media print { * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+    body { margin: 0; padding: 0; font-family: Arial, sans-serif; background: white; }
+    .page {
+      width: 100%;
+      height: 26.7cm;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: repeat(3, 1fr);
+      gap: 0.5cm;
+      box-sizing: border-box;
     }
-    body { margin: 0; font-family: Arial, sans-serif; font-size: 12px; }
-    .no-print {
-      background: #fffbea; border-bottom: 1px solid #e5c700;
-      padding: 10px 16px; font-size: 12px; color: #555; text-align: center;
-    }
-    .header {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 10px; border-bottom: 2px solid #333; padding-bottom: 6px;
-    }
-    .header-left { font-size: 13px; font-weight: bold; color: #111; }
-    .header-right { font-size: 11px; color: #888; }
-    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-    .card {
-      border: 1px solid #ccc; border-radius: 6px; padding: 10px;
-      display: flex; flex-direction: column; align-items: center; gap: 6px;
-      break-inside: avoid; page-break-inside: avoid;
-    }
-    .prod-name { font-size: 11px; font-weight: bold; text-align: center; max-height: 2.4em; overflow: hidden; }
-    .prod-code { font-size: 10px; color: #555; }
-    .barcode { display: block; }
-    .footer { font-size: 9px; color: #aaa; text-align: center; margin-top: 8px; }
     .page-break { break-after: page; page-break-after: always; }
+    .card {
+      border: 1.5px solid #1a1a2e;
+      border-radius: 6px;
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      overflow: hidden;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .card-left {
+      background: #1a1a2e;
+      width: 3.2cm;
+      min-width: 3.2cm;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px;
+    }
+    .card-left img { width: 80px; height: 80px; background: white; padding: 4px; border-radius: 4px; }
+    .card-left .msds-label { color: white; font-size: 9px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
+    .card-right {
+      flex: 1;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 4px;
+      background: white;
+    }
+    .product-name { font-size: 12px; font-weight: bold; color: #1a1a2e; line-height: 1.3; text-transform: uppercase; }
+    .product-code { font-size: 10px; color: #666; letter-spacing: 0.5px; }
+    .barcode-wrap { margin-top: 6px; }
+    svg.barcode { width: 100%; height: 35px; }
+    .scan-hint { font-size: 8px; color: #999; margin-top: 4px; }
   </style>
 </head>
 <body>
-  <div class="no-print">
-    ⚠️ Verifica que el diálogo de impresión tenga: <strong>Tamaño A4 · Orientación Vertical · Márgenes: 1 cm</strong>
-  </div>
   ${pagesHtml}
   <script>
     function tryPrint(jsBarcodeReady, imgsReady) {
