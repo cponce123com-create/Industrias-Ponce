@@ -76,6 +76,9 @@ interface Product {
   status: "active" | "inactive";
   msds?: boolean | null;
   controlled?: boolean | null;
+  hazardLevel?: string | null;
+  hazardPictograms?: string | null;
+  firstAid?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -112,6 +115,9 @@ const emptyForm = (warehouse = "General"): ProductFormData => ({
   status: "active",
   msds: false,
   controlled: false,
+  hazardLevel: "precaucion",
+  hazardPictograms: "[]",
+  firstAid: "",
 });
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -539,6 +545,73 @@ function ProductForm({ initial, onSubmit, onCancel, isLoading, isEdit }: Product
             <SelectItem value="inactive">Inactivo</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="space-y-3 pt-2">
+        <p className="text-sm font-semibold text-slate-700 border-t pt-3">Información de Seguridad (MSDS)</p>
+
+        <div className="space-y-1.5">
+          <Label>Nivel de Peligro</Label>
+          <Select
+            value={form.hazardLevel ?? "precaucion"}
+            onValueChange={v => set("hazardLevel", v)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="alto_riesgo">⚠️ Alto Riesgo</SelectItem>
+              <SelectItem value="precaucion">⚠️ Precaución</SelectItem>
+              <SelectItem value="controlado">⚠️ Uso Controlado</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>Pictogramas de Peligro GHS</Label>
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              ["explosivo",         "💥 Explosivo"],
+              ["inflamable",        "🔥 Inflamable"],
+              ["oxidante",          "🔶 Oxidante"],
+              ["gas_presion",       "🫧 Gas a presión"],
+              ["corrosivo",         "🧪 Corrosivo"],
+              ["toxico",            "☠️ Tóxico"],
+              ["nocivo",            "❗ Nocivo"],
+              ["peligro_ambiental", "🌿 Peligro ambiental"],
+              ["peligro_salud",     "⚕️ Peligro para la salud"],
+            ] as [string, string][]).map(([val, label]) => {
+              const selected: string[] = (() => {
+                try { return JSON.parse(form.hazardPictograms ?? "[]") as string[]; } catch { return []; }
+              })();
+              const checked = selected.includes(val);
+              const toggle = () => {
+                const next = checked ? selected.filter(s => s !== val) : [...selected, val];
+                set("hazardPictograms", JSON.stringify(next));
+              };
+              return (
+                <label key={val} className="flex items-center gap-2 cursor-pointer text-sm">
+                  <input type="checkbox" checked={checked} onChange={toggle} className="accent-teal-600" />
+                  {label}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="firstAid">Primeros Auxilios</Label>
+          <textarea
+            id="firstAid"
+            rows={3}
+            maxLength={300}
+            placeholder="Ej: Lavar con agua 15 min · Usar guantes · Avisar supervisor"
+            value={form.firstAid ?? ""}
+            onChange={e => set("firstAid", e.target.value)}
+            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+          />
+          <p className="text-xs text-slate-400 text-right">{(form.firstAid ?? "").length}/300</p>
+        </div>
       </div>
 
       <DialogFooter className="pt-2">
