@@ -14,7 +14,8 @@ export type AuditAction =
   | "logout"
   | "view"
   | "lot_change_notification"
-  | "product_out_notification";
+  | "product_out_notification"
+  | "email_notification";
 
 export async function writeAuditLog({
   userId,

@@ -761,3 +761,206 @@ Supervisor de Cocina Colores`;
     html,
   });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers comunes para plantillas de correo recurrente
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SMTP_USER = "carlos.ponce@sanjacinto.com.pe";
+
+function buildTransporter() {
+  const smtpPass = process.env.SMTP_APP_PASSWORD;
+  if (!smtpPass) throw new Error("SMTP_APP_PASSWORD no configurado");
+  return nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    auth: { user: SMTP_USER, pass: smtpPass },
+  });
+}
+
+function smtpHeader(title: string, iconEmoji: string, color: string) {
+  return `<div style="background:#1e3a5f;padding:24px 28px;border-radius:12px 12px 0 0;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:38px;height:38px;background:${color};border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;">${iconEmoji}</div>
+      <div>
+        <p style="margin:0;color:#93c5fd;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;font-weight:600;">Almacén Químico</p>
+        <p style="margin:2px 0 0;color:#ffffff;font-size:16px;font-weight:700;">${title}</p>
+      </div>
+    </div>
+  </div>`;
+}
+
+function smtpFooter(sender: string, role: string) {
+  return `<div style="background:#f1f5f9;padding:16px 28px;border-radius:0 0 12px 12px;border:1px solid #e2e8f0;border-top:none;">
+    <p style="margin:0;font-size:13px;color:#1e293b;font-weight:600;">Atentamente,</p>
+    <p style="margin:4px 0 0;font-size:13px;color:#475569;">${sender} — ${role}</p>
+    <p style="margin:10px 0 0;font-size:11px;color:#94a3b8;">Notificación automática · Sistema de Gestión de Almacén Químico</p>
+  </div>`;
+}
+
+function smtpWrap(header: string, body: string, footer: string) {
+  return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto;background:#f8fafc;padding:0;">${header}<div style="background:#ffffff;padding:28px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">${body}</div>${footer}</div>`;
+}
+
+function infoTable(rows: Array<[string, string]>, borderColor = "#3b82f6", bgColor = "#f1f5f9") {
+  const trs = rows.map(([label, val]) =>
+    `<tr><td style="padding:7px 0;font-size:13px;color:#64748b;width:40%;font-weight:500;">${label}</td><td style="padding:7px 0;font-size:14px;color:#1e293b;font-weight:600;">${val}</td></tr>`
+  ).join("");
+  return `<div style="background:${bgColor};border-radius:10px;padding:20px 24px;margin:16px 0;border-left:4px solid ${borderColor};"><table style="width:100%;border-collapse:collapse;">${trs}</table></div>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. Stock físico del colorante
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const STOCK_COLOR_TO = "judith.yachachin@sanjacinto.com.pe";
+export const STOCK_COLOR_CC = [
+  "laboratorio.tintoreria@sanjacinto.com.pe",
+  "laboratorista.tintoreria@sanjacinto.com.pe",
+  "ruben.roldan@sanjacinto.com.pe",
+] as const;
+
+export async function sendStockColoranteEmail(items: Array<{ code: string; name: string; quantity: string; unit: string }>) {
+  const transporter = buildTransporter();
+  const rows = items.map(i =>
+    `  ${i.code.padEnd(12)} ${i.name.padEnd(30)} ${i.quantity} ${i.unit}`
+  ).join("\n");
+  const text = `Buenas días,\n\nSe informa el siguiente stock físico de colorantes:\n\n${rows}\n\nSaludos Cordiales.\n\nCarlos Ponce\nSupervisor de Cocina Colores`;
+
+  const tableRows: Array<[string, string]> = items.map(i => [`${i.code} — ${i.name}`, `${i.quantity} ${i.unit}`]);
+  const html = smtpWrap(
+    smtpHeader("Stock Físico — Colorantes", "🎨", "#3b82f6"),
+    `<p style="margin:0 0 16px;font-size:15px;color:#374151;">Buenos días,</p>
+     <p style="margin:0 0 4px;font-size:14px;color:#374151;">Se informa el siguiente stock físico de colorantes:</p>
+     ${infoTable(tableRows, "#3b82f6", "#eff6ff")}
+     <p style="margin:0;font-size:14px;color:#374151;">Saludos Cordiales.</p>`,
+    smtpFooter("Carlos Ponce", "Supervisor de Cocina Colores")
+  );
+
+  await transporter.sendMail({
+    from: `"Carlos Ponce — Almacén Químico" <${SMTP_USER}>`,
+    to: STOCK_COLOR_TO,
+    cc: [...STOCK_COLOR_CC],
+    subject: "Stock Físico de Colorantes — Almacén Químico",
+    text,
+    html,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. Stock físico del auxiliar
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const STOCK_AUX_TO = "judith.yachachin@sanjacinto.com.pe";
+export const STOCK_AUX_CC = [
+  "laboratorio.tintoreria@sanjacinto.com.pe",
+  "laboratorista.tintoreria@sanjacinto.com.pe",
+  "ruben.roldan@sanjacinto.com.pe",
+] as const;
+
+export async function sendStockAuxiliarEmail(items: Array<{ code: string; name: string; quantity: string; unit: string }>) {
+  const transporter = buildTransporter();
+  const rows = items.map(i =>
+    `  ${i.code.padEnd(12)} ${i.name.padEnd(30)} ${i.quantity} ${i.unit}`
+  ).join("\n");
+  const text = `Buenos días,\n\nSe informa el siguiente stock físico de auxiliares:\n\n${rows}\n\nSaludos Cordiales.\n\nCarlos Ponce\nSupervisor de Cocina Colores`;
+
+  const tableRows: Array<[string, string]> = items.map(i => [`${i.code} — ${i.name}`, `${i.quantity} ${i.unit}`]);
+  const html = smtpWrap(
+    smtpHeader("Stock Físico — Auxiliares", "🧪", "#8b5cf6"),
+    `<p style="margin:0 0 16px;font-size:15px;color:#374151;">Buenos días,</p>
+     <p style="margin:0 0 4px;font-size:14px;color:#374151;">Se informa el siguiente stock físico de auxiliares:</p>
+     ${infoTable(tableRows, "#8b5cf6", "#f5f3ff")}
+     <p style="margin:0;font-size:14px;color:#374151;">Saludos Cordiales.</p>`,
+    smtpFooter("Carlos Ponce", "Supervisor de Cocina Colores")
+  );
+
+  await transporter.sendMail({
+    from: `"Carlos Ponce — Almacén Químico" <${SMTP_USER}>`,
+    to: STOCK_AUX_TO,
+    cc: [...STOCK_AUX_CC],
+    subject: "Stock Físico de Auxiliares — Almacén Químico",
+    text,
+    html,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. Solicitud de aprobación de orden interna
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const ORDER_APPROVAL_TO = "denis.miranda@sanjacinto.com.pe";
+
+export async function sendOrderApprovalEmail(items: Array<{ code: string; name: string; quantity: string; unit: string }>, notes?: string) {
+  const transporter = buildTransporter();
+  const rows = items.map(i =>
+    `  ${i.code.padEnd(12)} ${i.name.padEnd(30)} ${i.quantity} ${i.unit}`
+  ).join("\n");
+  const notesLine = notes ? `\nObservaciones: ${notes}\n` : "";
+  const text = `Estimado Denis,\n\nSolicito su aprobación para la siguiente orden interna:\n\n${rows}${notesLine}\n\nSaludos Cordiales.\n\nCarlos Ponce\nSupervisor de Cocina Colores`;
+
+  const tableRows: Array<[string, string]> = items.map(i => [`${i.code} — ${i.name}`, `${i.quantity} ${i.unit}`]);
+  const notesHtml = notes
+    ? `<p style="margin:12px 0 0;font-size:14px;color:#374151;"><strong>Observaciones:</strong> ${notes}</p>`
+    : "";
+  const html = smtpWrap(
+    smtpHeader("Solicitud de Aprobación — Orden Interna", "📋", "#f59e0b"),
+    `<p style="margin:0 0 16px;font-size:15px;color:#374151;">Estimado Denis,</p>
+     <p style="margin:0 0 4px;font-size:14px;color:#374151;">Solicito su aprobación para la siguiente orden interna:</p>
+     ${infoTable(tableRows, "#f59e0b", "#fffbeb")}
+     ${notesHtml}
+     <p style="margin:16px 0 0;font-size:14px;color:#374151;">Saludos Cordiales.</p>`,
+    smtpFooter("Carlos Ponce", "Supervisor de Cocina Colores")
+  );
+
+  await transporter.sendMail({
+    from: `"Carlos Ponce — Almacén Químico" <${SMTP_USER}>`,
+    to: ORDER_APPROVAL_TO,
+    subject: "Solicitud de Aprobación de Orden Interna — Almacén Químico",
+    text,
+    html,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. Solicitud de peso de bolsas plásticas
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const PLASTIC_BAG_TO = [
+  "almacen.despacho.repuestos@sanjacinto.com.pe",
+  "almacen.recepcion.repuestos@sanjacinto.com.pe",
+] as const;
+export const PLASTIC_BAG_CC = ["alex.laredo@sanjacinto.com.pe"] as const;
+
+export async function sendPlasticBagEmail(items: Array<{ code: string; name: string; quantity: string; unit: string }>, notes?: string) {
+  const transporter = buildTransporter();
+  const rows = items.map(i =>
+    `  ${i.code.padEnd(12)} ${i.name.padEnd(30)} ${i.quantity} ${i.unit}`
+  ).join("\n");
+  const notesLine = notes ? `\nObservaciones: ${notes}\n` : "";
+  const text = `Sres. buenos días,\n\nSolicito el peso de las siguientes bolsas plásticas:\n\n${rows}${notesLine}\n\nSaludos Cordiales.\n\nCarlos Ponce\nSupervisor de Cocina Colores`;
+
+  const tableRows: Array<[string, string]> = items.map(i => [`${i.code} — ${i.name}`, `${i.quantity} ${i.unit}`]);
+  const notesHtml = notes
+    ? `<p style="margin:12px 0 0;font-size:14px;color:#374151;"><strong>Observaciones:</strong> ${notes}</p>`
+    : "";
+  const html = smtpWrap(
+    smtpHeader("Solicitud de Peso — Bolsas Plásticas", "🛍️", "#10b981"),
+    `<p style="margin:0 0 16px;font-size:15px;color:#374151;">Sres. buenos días,</p>
+     <p style="margin:0 0 4px;font-size:14px;color:#374151;">Solicito el peso de las siguientes bolsas plásticas:</p>
+     ${infoTable(tableRows, "#10b981", "#ecfdf5")}
+     ${notesHtml}
+     <p style="margin:16px 0 0;font-size:14px;color:#374151;">Saludos Cordiales.</p>`,
+    smtpFooter("Carlos Ponce", "Supervisor de Cocina Colores")
+  );
+
+  await transporter.sendMail({
+    from: `"Carlos Ponce — Almacén Químico" <${SMTP_USER}>`,
+    to: [...PLASTIC_BAG_TO],
+    cc: [...PLASTIC_BAG_CC],
+    subject: "Solicitud de Peso de Bolsas Plásticas — Almacén Químico",
+    text,
+    html,
+  });
+}

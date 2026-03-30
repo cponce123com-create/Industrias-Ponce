@@ -8,10 +8,16 @@ import { writeAuditLog } from "../lib/audit.js";
 import {
   sendLotChangeNotificationEmail, LOT_CHANGE_RECIPIENTS,
   sendProductOutEmail, PRODUCT_OUT_TO, PRODUCT_OUT_CC,
+  sendStockColoranteEmail, STOCK_COLOR_TO, STOCK_COLOR_CC,
+  sendStockAuxiliarEmail, STOCK_AUX_TO, STOCK_AUX_CC,
+  sendOrderApprovalEmail, ORDER_APPROVAL_TO,
+  sendPlasticBagEmail, PLASTIC_BAG_TO, PLASTIC_BAG_CC,
 } from "../lib/email.js";
 import { z } from "zod/v4";
 
 const router = Router();
+
+// ── Lot change ────────────────────────────────────────────────────────────────
 
 const lotChangeSchema = z.object({
   productId: z.string().min(1, "El producto es requerido"),
@@ -53,36 +59,22 @@ router.post(
       .limit(1);
     const senderName = sender?.name ?? authedReq.userId;
 
-    await sendLotChangeNotificationEmail({
-      productName: product.name,
-      oldLot,
-      newLot,
-      productionOrder,
-      senderName,
-    });
+    await sendLotChangeNotificationEmail({ productName: product.name, oldLot, newLot, productionOrder, senderName });
 
     await writeAuditLog({
       userId: authedReq.userId,
       action: "lot_change_notification",
       resource: "products",
       resourceId: productId,
-      details: {
-        productName: product.name,
-        oldLot,
-        newLot,
-        productionOrder,
-        recipients: [...LOT_CHANGE_RECIPIENTS],
-      },
+      details: { productName: product.name, oldLot, newLot, productionOrder, recipients: [...LOT_CHANGE_RECIPIENTS] },
       ipAddress: req.ip,
     });
 
-    res.json({
-      message: "Notificación enviada correctamente",
-      productName: product.name,
-      recipients: LOT_CHANGE_RECIPIENTS.length,
-    });
+    res.json({ message: "Notificación enviada correctamente", productName: product.name, recipients: LOT_CHANGE_RECIPIENTS.length });
   })
 );
+
+// ── Product out ───────────────────────────────────────────────────────────────
 
 const productOutSchema = z.object({
   productCode: z.string(),
@@ -108,24 +100,128 @@ router.post(
 
     await writeAuditLog({
       userId: authedReq.userId,
-      action: "product_out_notification",
+      action: "email_notification",
       resource: "products",
       resourceId: productCode || productName,
-      details: {
-        productCode,
-        productName,
-        to: PRODUCT_OUT_TO,
-        cc: [...PRODUCT_OUT_CC],
-      },
+      details: { template: "product_out", productCode, productName, to: PRODUCT_OUT_TO, cc: [...PRODUCT_OUT_CC] },
       ipAddress: req.ip,
     });
 
-    res.json({
-      message: "Notificación enviada correctamente",
-      productName,
-      to: PRODUCT_OUT_TO,
-      cc: PRODUCT_OUT_CC.length,
+    res.json({ message: "Notificación enviada correctamente", productName, to: PRODUCT_OUT_TO, cc: PRODUCT_OUT_CC.length });
+  })
+);
+
+// ── Shared schema for item-list templates ─────────────────────────────────────
+
+const itemSchema = z.object({
+  code: z.string(),
+  name: z.string().min(1),
+  quantity: z.string().min(1),
+  unit: z.string().min(1),
+});
+
+const itemListSchema = z.object({
+  items: z.array(itemSchema).min(1, "Debe agregar al menos un ítem"),
+  notes: z.string().optional(),
+});
+
+// ── Stock colorante ───────────────────────────────────────────────────────────
+
+router.post(
+  "/stock-colorante",
+  requireAuth,
+  requireRole("operator", "supervisor", "admin"),
+  asyncHandler(async (req, res) => {
+    const authedReq = req as AuthenticatedRequest;
+    const parsed = itemListSchema.safeParse(req.body);
+    if (!parsed.success) { res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Datos inválidos" }); return; }
+
+    await sendStockColoranteEmail(parsed.data.items);
+
+    await writeAuditLog({
+      userId: authedReq.userId,
+      action: "email_notification",
+      resource: "notifications",
+      details: { template: "stock_colorante", items: parsed.data.items, to: STOCK_COLOR_TO, cc: [...STOCK_COLOR_CC] },
+      ipAddress: req.ip,
     });
+
+    res.json({ message: "Correo de stock de colorante enviado", to: STOCK_COLOR_TO, cc: STOCK_COLOR_CC.length });
+  })
+);
+
+// ── Stock auxiliar ────────────────────────────────────────────────────────────
+
+router.post(
+  "/stock-auxiliar",
+  requireAuth,
+  requireRole("operator", "supervisor", "admin"),
+  asyncHandler(async (req, res) => {
+    const authedReq = req as AuthenticatedRequest;
+    const parsed = itemListSchema.safeParse(req.body);
+    if (!parsed.success) { res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Datos inválidos" }); return; }
+
+    await sendStockAuxiliarEmail(parsed.data.items);
+
+    await writeAuditLog({
+      userId: authedReq.userId,
+      action: "email_notification",
+      resource: "notifications",
+      details: { template: "stock_auxiliar", items: parsed.data.items, to: STOCK_AUX_TO, cc: [...STOCK_AUX_CC] },
+      ipAddress: req.ip,
+    });
+
+    res.json({ message: "Correo de stock de auxiliar enviado", to: STOCK_AUX_TO, cc: STOCK_AUX_CC.length });
+  })
+);
+
+// ── Order approval ────────────────────────────────────────────────────────────
+
+router.post(
+  "/order-approval",
+  requireAuth,
+  requireRole("operator", "supervisor", "admin"),
+  asyncHandler(async (req, res) => {
+    const authedReq = req as AuthenticatedRequest;
+    const parsed = itemListSchema.safeParse(req.body);
+    if (!parsed.success) { res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Datos inválidos" }); return; }
+
+    await sendOrderApprovalEmail(parsed.data.items, parsed.data.notes);
+
+    await writeAuditLog({
+      userId: authedReq.userId,
+      action: "email_notification",
+      resource: "notifications",
+      details: { template: "order_approval", items: parsed.data.items, to: ORDER_APPROVAL_TO },
+      ipAddress: req.ip,
+    });
+
+    res.json({ message: "Solicitud de aprobación enviada", to: ORDER_APPROVAL_TO });
+  })
+);
+
+// ── Plastic bag ───────────────────────────────────────────────────────────────
+
+router.post(
+  "/plastic-bag",
+  requireAuth,
+  requireRole("operator", "supervisor", "admin"),
+  asyncHandler(async (req, res) => {
+    const authedReq = req as AuthenticatedRequest;
+    const parsed = itemListSchema.safeParse(req.body);
+    if (!parsed.success) { res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Datos inválidos" }); return; }
+
+    await sendPlasticBagEmail(parsed.data.items, parsed.data.notes);
+
+    await writeAuditLog({
+      userId: authedReq.userId,
+      action: "email_notification",
+      resource: "notifications",
+      details: { template: "plastic_bag", items: parsed.data.items, to: [...PLASTIC_BAG_TO], cc: [...PLASTIC_BAG_CC] },
+      ipAddress: req.ip,
+    });
+
+    res.json({ message: "Solicitud de bolsas enviada", to: PLASTIC_BAG_TO.length, cc: PLASTIC_BAG_CC.length });
   })
 );
 
