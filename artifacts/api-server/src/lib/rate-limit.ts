@@ -30,6 +30,16 @@ export const lookupLimiter = rateLimit({
   skip: () => process.env.NODE_ENV === "test",
 });
 
+/** 10 destructive (DELETE /all) requests per 15 minutes per IP */
+export const destructiveActionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Demasiadas operaciones destructivas. Espera 15 minutos antes de intentar de nuevo." },
+  skip: () => process.env.NODE_ENV === "test",
+});
+
 /** 500 requests per 15 minutes per IP — general API catch-all */
 export const generalApiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

@@ -9,6 +9,7 @@ import { generateId } from "../lib/id.js";
 import { z } from "zod/v4";
 import { asyncHandler } from "../lib/async-handler.js";
 import { writeAuditLog } from "../lib/audit.js";
+import { destructiveActionLimiter } from "../lib/rate-limit.js";
 import { parsePagination } from "../lib/pagination.js";
 
 
@@ -287,7 +288,7 @@ router.patch("/:id", requireAuth, requireRole("supervisor", "admin", "operator")
   res.json(updated);
 }));
 
-router.delete("/all", requireAuth, requireRole("admin"), asyncHandler(async (req, res) => {
+router.delete("/all", destructiveActionLimiter, requireAuth, requireRole("admin"), asyncHandler(async (req, res) => {
   const authedReq = req as AuthenticatedRequest;
   const { confirm } = req.body as { confirm?: string };
   if (confirm !== "ELIMINAR_TODO") {

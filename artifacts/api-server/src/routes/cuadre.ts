@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { cuadreRecordsTable, cuadreItemsTable } from "@workspace/db";
+import { cuadreRecordsTable, cuadreItemsTable, balanceRecordsTable } from "@workspace/db";
 import { eq, desc, and, inArray, sql } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../lib/auth.js";
 import { generateId } from "../lib/id.js";
@@ -39,26 +39,50 @@ router.get("/", requireAuth, asyncHandler(async (req, res) => {
   const ids = records.map(r => r.id);
   const allItems = await db.select().from(cuadreItemsTable).where(inArray(cuadreItemsTable.cuadreId, ids));
 
-  // Last consumption date per product code
+  // Last consumption date per product code — dual source: ERP (balance_records) > Sistema (inventory_records)
   const codes = [...new Set(allItems.map(i => i.code))];
   const lcMap = new Map<string, string>();
+  const sourceMap = new Map<string, "ERP" | "Sistema">();
+
   if (codes.length > 0) {
-    const lcRows = await db.execute(sql`
+    // Source 1: ERP — latest ultimo_consumo from balance_records per code
+    const erpRows = await db.execute(sql`
+      SELECT code, MAX(ultimo_consumo) AS ultimo_consumo
+      FROM balance_records
+      WHERE code = ANY(${codes})
+      GROUP BY code
+    `);
+    for (const row of erpRows.rows as { code: string; ultimo_consumo: string | null }[]) {
+      if (row.ultimo_consumo && row.ultimo_consumo > "2013-01-01") {
+        lcMap.set(row.code, row.ultimo_consumo);
+        sourceMap.set(row.code, "ERP");
+      }
+    }
+
+    // Source 2: Sistema — MAX(record_date) from inventory_records as fallback
+    const sysRows = await db.execute(sql`
       SELECT p.code, MAX(ir.record_date) AS last_consumption_date
       FROM inventory_records ir
       JOIN products p ON ir.product_id = p.id
       WHERE p.code = ANY(${codes})
       GROUP BY p.code
     `);
-    for (const row of lcRows.rows as { code: string; last_consumption_date: string | null }[]) {
-      if (row.last_consumption_date) lcMap.set(row.code, row.last_consumption_date);
+    for (const row of sysRows.rows as { code: string; last_consumption_date: string | null }[]) {
+      if (row.last_consumption_date && !lcMap.has(row.code)) {
+        lcMap.set(row.code, row.last_consumption_date);
+        sourceMap.set(row.code, "Sistema");
+      }
     }
   }
 
   const itemMap = new Map<string, typeof allItems>();
   for (const item of allItems) {
     if (!itemMap.has(item.cuadreId)) itemMap.set(item.cuadreId, []);
-    itemMap.get(item.cuadreId)!.push({ ...item, lastConsumptionDate: lcMap.get(item.code) ?? null } as typeof item & { lastConsumptionDate: string | null });
+    itemMap.get(item.cuadreId)!.push({
+      ...item,
+      lastConsumptionDate: lcMap.get(item.code) ?? null,
+      sourceLabel: sourceMap.get(item.code) ?? "Sistema",
+    } as typeof item & { lastConsumptionDate: string | null; sourceLabel: "ERP" | "Sistema" });
   }
   res.json(records.map(r => ({ ...r, items: itemMap.get(r.id) ?? [] })));
 }));

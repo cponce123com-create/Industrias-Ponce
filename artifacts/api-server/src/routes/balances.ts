@@ -8,6 +8,7 @@ import { requireAuth, requireRole, type AuthenticatedRequest } from "../lib/auth
 import { generateId } from "../lib/id.js";
 import { z } from "zod/v4";
 import { asyncHandler } from "../lib/async-handler.js";
+import { destructiveActionLimiter } from "../lib/rate-limit.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -258,7 +259,7 @@ router.put("/:id", requireAuth, requireRole("supervisor", "admin", "operator"), 
   res.json(updated);
 }));
 
-router.delete("/all", requireAuth, requireRole("admin"), asyncHandler(async (_req, res) => {
+router.delete("/all", destructiveActionLimiter, requireAuth, requireRole("admin"), asyncHandler(async (_req, res) => {
   await db.delete(balanceRecordsTable);
   res.json({ message: "Todos los saldos eliminados correctamente" });
 }));
