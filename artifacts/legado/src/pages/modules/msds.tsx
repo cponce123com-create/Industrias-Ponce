@@ -7,7 +7,7 @@ import { useWarehouse, WAREHOUSES, type Warehouse as WarehouseType } from "@/con
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, ShieldCheck, ShieldOff, Download, Printer, AlertCircle, Loader2, Save, BookOpen } from "lucide-react";
+import { Search, ShieldCheck, ShieldOff, Download, Printer, AlertCircle, Loader2, Save, BookOpen, Trash2 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
 interface Product {
@@ -87,6 +87,34 @@ export default function MsdsPage() {
       if (!res.ok) {
         const e = await res.json().catch(() => ({}));
         throw new Error(e.error ?? "Error al guardar");
+      }
+      const updated: Product = await res.json();
+      setSelected(updated);
+      setMsdsInput("");
+      setEditingUrl(false);
+      void queryClient.invalidateQueries({ queryKey: ["/api/products", warehouse] });
+      void queryClient.invalidateQueries({ queryKey: ["/api/products/msds-stats", warehouse] });
+    } catch (err: any) {
+      setSaveError(err.message ?? "Error desconocido");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteMsds() {
+    if (!selected) return;
+    if (!window.confirm("¿Eliminar la URL del MSDS de este producto? Se quitará el enlace y el estado MSDS pasará a 'Sin ficha'.")) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const res = await fetch(`${BASE}/api/products/${selected.id}`, {
+        method: "PATCH",
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ msdsUrl: null, msds: false }),
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error(e.error ?? "Error al eliminar");
       }
       const updated: Product = await res.json();
       setSelected(updated);
@@ -648,6 +676,15 @@ export default function MsdsPage() {
                         style={{ gap: 6, borderColor: "#cbd5e1", color: "#475569" }}
                       >
                         Editar URL
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => void handleDeleteMsds()}
+                        disabled={saving}
+                        style={{ gap: 6, borderColor: "#fca5a5", color: "#dc2626" }}
+                      >
+                        <Trash2 style={{ width: 14, height: 14 }} />
+                        Quitar URL
                       </Button>
                     </div>
                   </div>
