@@ -2,7 +2,7 @@ import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useEffect } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { WarehouseProvider } from "@/contexts/WarehouseContext";
@@ -11,22 +11,22 @@ import NotFound from "@/pages/not-found";
 import Login from "@/pages/auth/login";
 import Dashboard from "@/pages/dashboard";
 
-import ProductsPage from "@/pages/modules/products";
-import InventoryPage from "@/pages/modules/inventory";
-import BalancesPage from "@/pages/modules/balances";
-import CuadrePage from "@/pages/modules/cuadre";
-import ImmobilizedPage from "@/pages/modules/immobilized";
-import SamplesPage from "@/pages/modules/samples";
-import DyeLotsPage from "@/pages/modules/dye-lots";
-import DispositionPage from "@/pages/modules/disposition";
-import DocumentsPage from "@/pages/modules/documents";
-import EppPage from "@/pages/modules/epp";
-import PersonnelPage from "@/pages/modules/personnel";
-import ReportsPage from "@/pages/modules/reports";
-import AdminUsersPage from "@/pages/modules/admin-users";
-import LotEvaluationsPage from "@/pages/modules/lot-evaluations";
-import MsdsPage from "@/pages/modules/msds";
-import ProfilePage from "@/pages/profile";
+const ProductsPage       = lazy(() => import("@/pages/modules/products"));
+const InventoryPage      = lazy(() => import("@/pages/modules/inventory"));
+const BalancesPage       = lazy(() => import("@/pages/modules/balances"));
+const CuadrePage         = lazy(() => import("@/pages/modules/cuadre"));
+const ImmobilizedPage    = lazy(() => import("@/pages/modules/immobilized"));
+const SamplesPage        = lazy(() => import("@/pages/modules/samples"));
+const DyeLotsPage        = lazy(() => import("@/pages/modules/dye-lots"));
+const DispositionPage    = lazy(() => import("@/pages/modules/disposition"));
+const DocumentsPage      = lazy(() => import("@/pages/modules/documents"));
+const EppPage            = lazy(() => import("@/pages/modules/epp"));
+const PersonnelPage      = lazy(() => import("@/pages/modules/personnel"));
+const ReportsPage        = lazy(() => import("@/pages/modules/reports"));
+const AdminUsersPage     = lazy(() => import("@/pages/modules/admin-users"));
+const LotEvaluationsPage = lazy(() => import("@/pages/modules/lot-evaluations"));
+const MsdsPage           = lazy(() => import("@/pages/modules/msds"));
+const ProfilePage        = lazy(() => import("@/pages/profile"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,6 +36,14 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+function PageLoader() {
+  return (
+    <div className="h-screen w-full bg-slate-50 flex items-center justify-center">
+      <div className="w-8 h-8 border-4 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
+    </div>
+  );
+}
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -47,17 +55,14 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
     }
   }, [isLoading, isAuthenticated]);
 
-  if (isLoading) {
-    return (
-      <div className="h-screen w-full bg-slate-50 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
-      </div>
-    );
-  }
-
+  if (isLoading) return <PageLoader />;
   if (!isAuthenticated) return null;
 
-  return <Component />;
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <Component />
+    </Suspense>
+  );
 }
 
 function PublicOnlyRoute({ component: Component }: { component: React.ComponentType }) {

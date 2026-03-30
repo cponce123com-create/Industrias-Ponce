@@ -112,3 +112,15 @@ JWT tokens signed with SESSION_SECRET env var. Role middleware via `requireRole(
 ## TypeScript & Composite Projects
 
 Every package extends `tsconfig.base.json`. Root `tsconfig.json` lists lib packages as project references. Run full typecheck with `pnpm run typecheck`.
+
+## Page Refactoring (partials pattern)
+
+Large page files have been split into `*-partials` files to keep individual files under ~650 lines:
+
+| Original | Lines (before) | Partials file | Page file (after) |
+|---|---|---|---|
+| `inventory.tsx` | 906 | `inventory-partials.tsx` (314 lines) — 4 sub-components + types/helpers | 609 lines |
+| `products.tsx` | 1234 | `products-partials.tsx` (601 lines) — 4 sub-components + types/helpers/API fns | 647 lines |
+| `msds.tsx` | 778 | `msds-print.ts` (217 lines) — pure `buildMsdsAlbumHtml` function | 573 lines |
+
+Convention: `*-partials.tsx` files export all types, helpers, and sub-components consumed by the page. `msds-print.ts` is a pure TS utility (no React).

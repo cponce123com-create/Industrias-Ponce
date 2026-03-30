@@ -4,7 +4,7 @@ import { dyeLotsTable, usersTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../lib/auth.js";
 import { generateId } from "../lib/id.js";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { asyncHandler } from "../lib/async-handler.js";
 import { sendDyeLotNotificationEmail } from "../lib/email.js";
 import { logger } from "../lib/logger.js";

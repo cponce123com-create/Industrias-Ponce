@@ -4,7 +4,7 @@ import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth, requireRole, hashPassword, type AuthenticatedRequest } from "../lib/auth.js";
 import { generateId } from "../lib/id.js";
-import { z } from "zod";
+import { z } from "zod/v4";
 import type { WarehouseRole } from "@workspace/db";
 import { asyncHandler } from "../lib/async-handler.js";
 import { writeAuditLog } from "../lib/audit.js";

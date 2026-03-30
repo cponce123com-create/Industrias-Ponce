@@ -1,0 +1,25 @@
+Medios — impactan calidad y rendimiento
+medio
+Función parsePagination duplicada 4 veces
+La misma función (idéntica, palabra por palabra) está copiada en inventory.ts, products.ts, samples.ts y personnel.ts.
+→ Extraerla a artifacts/api-server/src/lib/pagination.ts e importarla en cada route.
+medio
+Tabla inventory_records sin índices compuestos
+Todas las queries filtran por warehouse, productId y recordDate pero la tabla solo tiene la PK. A medida que crezca el inventario, cada GET hará un seq-scan completo.
+→ Agregar índices en (warehouse, recordDate) y (productId, recordDate) en el schema de Drizzle.
+medio
+Sin code splitting: 16 páginas cargadas juntas
+En App.tsx se importan de forma estática las 16 páginas del sistema (Inventory, Products, MSDS, Reports…). El bundle inicial contiene todo el código aunque el usuario solo visite el dashboard.
+→ Convertir a React.lazy() con un <Suspense> wrapper para que cada página se cargue solo cuando se navega a ella.
+medio
+Dos versiones de Zod mezcladas en el mismo repo
+Los schemas del servidor (routes/*.ts) importan de "zod", mientras los schemas de la base de datos (lib/db/schema/*.ts) importan de "zod/v4". Esto puede causar incompatibilidades de tipos en runtime.
+→ Unificar todo a zod/v4 (ya está instalado) y actualizar los imports en todas las routes.
+medio
+Solo hay 1 archivo de tests (auth) de 16 módulos
+El artifacts/api-server/src/__tests__/ solo contiene auth.test.ts. Las rutas de inventory, products, MSDS, reports y todas las demás no tienen ninguna cobertura automatizada.
+→ Priorizar tests para los módulos de mayor riesgo: inventory (cálculos de balance) y admin-users (escalación de privilegios).
+medio
+Páginas demasiado largas (products: 1233 líneas)
+products.tsx tiene 1233 líneas, inventory.tsx 905 y msds.tsx 777. Son componentes monolíticos con formularios, tablas, modales y lógica de negocio todos mezclados.
+→ Extraer subcomponentes: ProductForm, ProductTable, DeleteAllModal, etc. Facilita el testing y el mantenimiento.

@@ -4,8 +4,6 @@ import express from "express";
 import jwt from "jsonwebtoken";
 
 // ── Hoisted mock refs ────────────────────────────────────────────────────────
-// vi.hoisted runs before module evaluation, giving us stable references that
-// can be used inside vi.mock factories and imported test code alike.
 const { dbSelectMock, bcryptCompareMock, auditLogMock } = vi.hoisted(() => ({
   dbSelectMock: vi.fn(),
   bcryptCompareMock: vi.fn(),
@@ -25,15 +23,18 @@ vi.mock("@workspace/db", () => ({
     createdAt: { name: "created_at" },
     passwordHash: { name: "password_hash" },
   },
+  revokedTokensTable: {
+    jti: { name: "jti" },
+    expiresAt: { name: "expires_at" },
+  },
 }));
 
-// Spread the real drizzle-orm but replace SQL-building helpers so they don't
-// try to introspect our stub column objects.
 vi.mock("drizzle-orm", async (importOriginal) => {
   const real = await importOriginal<typeof import("drizzle-orm")>();
   return {
     ...real,
     eq: vi.fn(() => ({ _tag: "eq" })),
+    lt: vi.fn(() => ({ _tag: "lt" })),
     and: vi.fn(() => ({ _tag: "and" })),
     desc: vi.fn(() => ({ _tag: "desc" })),
   };
@@ -56,13 +57,35 @@ import authRouter from "../routes/auth.js";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Build a chainable Drizzle-lookalike that resolves to `rows` on .limit() */
+/**
+ * Build a chainable Drizzle-lookalike that resolves to `rows` on .limit().
+ * Also handles .delete().where() chains used by revokeToken cleanup.
+ */
 function makeChain(rows: Record<string, unknown>[]) {
   const chain: Record<string, unknown> = {};
   chain.from = vi.fn(() => chain);
   chain.where = vi.fn(() => chain);
   chain.limit = vi.fn(() => Promise.resolve(rows));
-  return chain as { from: ReturnType<typeof vi.fn>; where: ReturnType<typeof vi.fn>; limit: ReturnType<typeof vi.fn> };
+  return chain as {
+    from: ReturnType<typeof vi.fn>;
+    where: ReturnType<typeof vi.fn>;
+    limit: ReturnType<typeof vi.fn>;
+  };
+}
+
+/**
+ * requireAuth now runs TWO parallel db.select calls:
+ *   1st → user status check
+ *   2nd → revoked-token (JTI blacklist) check
+ * Use this helper to set both up in one call.
+ */
+function mockRequireAuth(
+  userRow: Record<string, unknown> = { status: "active", role: "operator" },
+  revokedRows: Record<string, unknown>[] = []
+) {
+  dbSelectMock
+    .mockReturnValueOnce(makeChain([userRow]))   // user status
+    .mockReturnValueOnce(makeChain(revokedRows)); // blacklist
 }
 
 function createApp() {
@@ -84,12 +107,19 @@ const mockUser = {
   createdAt: new Date("2024-01-01T00:00:00.000Z"),
 };
 
+function makeToken(overrides: Record<string, unknown> = {}) {
+  return jwt.sign(
+    { userId: mockUser.id, email: mockUser.email, role: mockUser.role, jti: "test-jti-1", ...overrides },
+    TEST_SECRET,
+    { expiresIn: "1h" }
+  );
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe("Auth Routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Re-apply the audit log no-op after clearAllMocks resets it
     auditLogMock.mockResolvedValue(undefined);
   });
 
@@ -108,7 +138,6 @@ describe("Auth Routes", () => {
       expect(res.body.token).toEqual(expect.any(String));
       expect(res.body.user.email).toBe(mockUser.email);
       expect(res.body.user.role).toBe("operator");
-      // Sensitive field must never be exposed
       expect(res.body.user).not.toHaveProperty("passwordHash");
     });
 
@@ -146,20 +175,15 @@ describe("Auth Routes", () => {
     });
   });
 
-  // ── GET /api/auth/me  (token verification) ────────────────────────────────
+  // ── GET /api/auth/me ─────────────────────────────────────────────────────
 
   describe("GET /api/auth/me", () => {
     it("returns 200 with current user data for a valid token", async () => {
-      const token = jwt.sign(
-        { userId: mockUser.id, email: mockUser.email, role: mockUser.role },
-        TEST_SECRET,
-        { expiresIn: "1h" }
-      );
-
-      // requireAuth performs one DB check; the route handler performs another.
-      dbSelectMock
-        .mockReturnValueOnce(makeChain([{ status: "active", role: "operator" }]))
-        .mockReturnValueOnce(makeChain([mockUser]));
+      const token = makeToken();
+      // requireAuth: user check + blacklist check (in that order via Promise.all)
+      mockRequireAuth({ status: "active", role: "operator" });
+      // route handler: fetch full user record
+      dbSelectMock.mockReturnValueOnce(makeChain([mockUser]));
 
       const res = await request(createApp())
         .get("/api/auth/me")
@@ -180,25 +204,33 @@ describe("Auth Routes", () => {
       const res = await request(createApp())
         .get("/api/auth/me")
         .set("Authorization", "Bearer not.a.real.jwt");
-
       expect(res.status).toBe(401);
     });
 
     it("returns 401 when the DB check finds the user is no longer active", async () => {
-      const token = jwt.sign(
-        { userId: mockUser.id, email: mockUser.email, role: mockUser.role },
-        TEST_SECRET,
-        { expiresIn: "1h" }
-      );
-
-      // requireAuth DB check returns an inactive user
-      dbSelectMock.mockReturnValueOnce(makeChain([{ status: "inactive", role: "operator" }]));
+      const token = makeToken();
+      mockRequireAuth({ status: "inactive", role: "operator" });
 
       const res = await request(createApp())
         .get("/api/auth/me")
         .set("Authorization", `Bearer ${token}`);
 
       expect(res.status).toBe(401);
+    });
+
+    it("returns 401 when the token JTI has been revoked (logged out)", async () => {
+      const token = makeToken({ jti: "revoked-jti" });
+      // user check returns active, but blacklist returns a match
+      dbSelectMock
+        .mockReturnValueOnce(makeChain([{ status: "active", role: "operator" }]))
+        .mockReturnValueOnce(makeChain([{ jti: "revoked-jti" }]));
+
+      const res = await request(createApp())
+        .get("/api/auth/me")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(401);
+      expect(res.body.error).toMatch(/sesión cerrada/i);
     });
   });
 });

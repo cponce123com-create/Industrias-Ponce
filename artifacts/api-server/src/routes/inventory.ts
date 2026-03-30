@@ -5,16 +5,12 @@ import { inventoryRecordsTable, productsTable, inventoryBoxesTable } from "@work
 import { eq, desc, sql, and, inArray, count, max } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../lib/auth.js";
 import { generateId } from "../lib/id.js";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { asyncHandler } from "../lib/async-handler.js";
 import { uploadFileToDrive } from "../lib/google-drive.js";
 import { writeAuditLog } from "../lib/audit.js";
+import { parsePagination } from "../lib/pagination.js";
 
-function parsePagination(q: Record<string, unknown>) {
-  const page = Math.max(1, parseInt(String(q.page ?? "1"), 10) || 1);
-  const limit = Math.min(500, Math.max(1, parseInt(String(q.limit ?? "50"), 10) || 50));
-  return { page, limit, offset: (page - 1) * limit };
-}
 
 const router = Router();
 
