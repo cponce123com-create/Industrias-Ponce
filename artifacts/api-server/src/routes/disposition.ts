@@ -1,4 +1,5 @@
 import { Router } from "express";
+import multer from "multer";
 import { db } from "@workspace/db";
 import { finalDispositionTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
@@ -6,6 +7,9 @@ import { requireAuth, requireRole, type AuthenticatedRequest } from "../lib/auth
 import { generateId } from "../lib/id.js";
 import { z } from "zod";
 import { asyncHandler } from "../lib/async-handler.js";
+import { uploadToCloudinary } from "../lib/cloudinary.js";
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const router = Router();
 
@@ -76,6 +80,44 @@ router.delete("/:id", requireAuth, requireRole("supervisor", "admin"), asyncHand
   const [deleted] = await db.delete(finalDispositionTable).where(eq(finalDispositionTable.id, id as string)).returning();
   if (!deleted) { res.status(404).json({ error: "Registro no encontrado" }); return; }
   res.json({ message: "Registro eliminado" });
+}));
+
+router.post("/:id/photos", requireAuth, requireRole("supervisor", "admin", "operator"), upload.array("photos", 5), asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const files = req.files as Express.Multer.File[] | undefined;
+  if (!files || files.length === 0) { res.status(400).json({ error: "No se enviaron fotos" }); return; }
+
+  const [record] = await db.select({ photos: finalDispositionTable.photos }).from(finalDispositionTable).where(eq(finalDispositionTable.id, id as string)).limit(1);
+  if (!record) { res.status(404).json({ error: "Registro no encontrado" }); return; }
+
+  const existing = (record.photos as string[]) ?? [];
+  const slots = 5 - existing.length;
+  if (slots <= 0) { res.status(400).json({ error: "Ya se alcanzó el límite de 5 fotos" }); return; }
+
+  const toUpload = files.slice(0, slots);
+  const uploaded: string[] = [];
+  for (const file of toUpload) {
+    const result = await uploadToCloudinary(file.buffer, { resource_type: "image", folder: "legado/disposition" });
+    uploaded.push(result.secure_url);
+  }
+
+  const newPhotos = [...existing, ...uploaded];
+  const [updated] = await db.update(finalDispositionTable).set({ photos: newPhotos, updatedAt: new Date() }).where(eq(finalDispositionTable.id, id as string)).returning();
+  res.json(updated);
+}));
+
+router.delete("/:id/photos/:photoIndex", requireAuth, requireRole("supervisor", "admin"), asyncHandler(async (req, res) => {
+  const { id, photoIndex } = req.params;
+  const idx = parseInt(photoIndex as string, 10);
+  const [record] = await db.select({ photos: finalDispositionTable.photos }).from(finalDispositionTable).where(eq(finalDispositionTable.id, id as string)).limit(1);
+  if (!record) { res.status(404).json({ error: "Registro no encontrado" }); return; }
+
+  const photos = [...((record.photos as string[]) ?? [])];
+  if (idx < 0 || idx >= photos.length) { res.status(400).json({ error: "Índice de foto inválido" }); return; }
+  photos.splice(idx, 1);
+
+  const [updated] = await db.update(finalDispositionTable).set({ photos, updatedAt: new Date() }).where(eq(finalDispositionTable.id, id as string)).returning();
+  res.json(updated);
 }));
 
 export default router;

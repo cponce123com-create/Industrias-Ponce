@@ -13,14 +13,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Recycle, Plus, Loader2, AlertCircle, Pencil, Trash2, CheckCircle2, ChevronsUpDown, Check } from "lucide-react";
+import { Recycle, Plus, Loader2, AlertCircle, Pencil, Trash2, CheckCircle2, ChevronsUpDown, Check, Camera } from "lucide-react";
+import { PhotoGallery } from "@/components/ui/PhotoGallery";
 
 interface Product { id: string; code: string; name: string; unit: string; }
 interface Disposition {
   id: string; productId?: string | null; productNameManual?: string | null;
   quantity: string; unit: string; dispositionType: string; dispositionDate: string;
   contractor?: string | null; manifestNumber?: string | null; certificateNumber?: string | null;
-  cost?: string | null; status: string; notes?: string | null;
+  cost?: string | null; status: string; notes?: string | null; photos?: string[] | null;
 }
 
 const api = async (path: string, opts?: RequestInit) => {
@@ -242,6 +243,7 @@ export default function DisposicionFinalPage() {
   const [editItem, setEditItem] = useState<Disposition | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Disposition | null>(null);
   const [completeTarget, setCompleteTarget] = useState<Disposition | null>(null);
+  const [photoTarget, setPhotoTarget] = useState<Disposition | null>(null);
   const [filterStatus, setFilterStatus] = useState("all");
 
   const { data: products = [] } = useQuery<Product[]>({
@@ -365,7 +367,7 @@ export default function DisposicionFinalPage() {
                     <TableHead className="font-semibold text-slate-600">Empresa Gestora</TableHead>
                     <TableHead className="font-semibold text-slate-600 w-20 text-right">Costo</TableHead>
                     <TableHead className="font-semibold text-slate-600 w-32">Estado</TableHead>
-                    {canManage && <TableHead className="w-24 text-right"></TableHead>}
+                    <TableHead className="w-28 text-right"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -392,26 +394,37 @@ export default function DisposicionFinalPage() {
                         <TableCell>
                           <Badge className={`${cfg.className} hover:${cfg.className} text-xs`}>{cfg.label}</Badge>
                         </TableCell>
-                        {canManage && (
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              {r.status !== "completed" && r.status !== "cancelled" && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50"
-                                  onClick={() => setCompleteTarget(r)} title="Marcar como completado">
-                                  <CheckCircle2 className="w-3.5 h-3.5" />
-                                </Button>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 hover:text-teal-600 hover:bg-teal-50 relative"
+                              onClick={() => setPhotoTarget(r)} title="Ver / agregar fotos">
+                              <Camera className="w-3.5 h-3.5" />
+                              {r.photos && r.photos.length > 0 && (
+                                <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-teal-600 rounded-full text-[9px] text-white flex items-center justify-center font-bold">
+                                  {r.photos.length}
+                                </span>
                               )}
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 hover:text-blue-600 hover:bg-blue-50"
-                                onClick={() => setEditItem(r)}>
-                                <Pencil className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-red-600 hover:bg-red-50"
-                                onClick={() => setDeleteTarget(r)}>
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        )}
+                            </Button>
+                            {canManage && (
+                              <>
+                                {r.status !== "completed" && r.status !== "cancelled" && (
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50"
+                                    onClick={() => setCompleteTarget(r)} title="Marcar como completado">
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                )}
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 hover:text-blue-600 hover:bg-blue-50"
+                                  onClick={() => setEditItem(r)}>
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                  onClick={() => setDeleteTarget(r)}>
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -492,6 +505,28 @@ export default function DisposicionFinalPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <Dialog open={!!photoTarget} onOpenChange={o => { if (!o) setPhotoTarget(null); }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Camera className="w-5 h-5 text-teal-600" />
+                Fotos — {photoTarget ? displayName(photoTarget) : ""}
+              </DialogTitle>
+            </DialogHeader>
+            {photoTarget && (
+              <PhotoGallery
+                recordId={photoTarget.id}
+                photos={photoTarget.photos ?? []}
+                uploadUrl={`/api/disposition/${photoTarget.id}/photos`}
+                deleteUrl={idx => `/api/disposition/${photoTarget.id}/photos/${idx}`}
+                queryKey={["/api/disposition"]}
+                canUpload={!!canWrite}
+                canDelete={!!canManage}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );

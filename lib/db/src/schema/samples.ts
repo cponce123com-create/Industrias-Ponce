@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, numeric, date } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, numeric, date, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { productsTable } from "./products";
@@ -19,6 +19,7 @@ export const samplesTable = pgTable("samples", {
   status: text("status").notNull().default("pending"),
   result: text("result"),
   notes: text("notes"),
+  photos: jsonb("photos").$type<string[]>().default([]),
   takenBy: text("taken_by").notNull().references(() => usersTable.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

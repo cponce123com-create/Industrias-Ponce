@@ -11,14 +11,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { TestTube, Plus, Loader2, AlertCircle, Pencil, Trash2, Search } from "lucide-react";
+import { PhotoGallery } from "@/components/ui/PhotoGallery";
+import { TestTube, Plus, Loader2, AlertCircle, Pencil, Trash2, Search, Camera } from "lucide-react";
 
 interface Sample {
   id: string; productId?: string | null; productName?: string | null;
   supplier?: string | null; sampleCode: string; quantity: string; unit: string;
   sampleDate: string; purpose: string; destination?: string | null;
   labReference?: string | null; status: string; result?: string | null;
-  notes?: string | null; takenBy: string;
+  notes?: string | null; takenBy: string; photos?: string[] | null;
 }
 
 const api = async (path: string, opts?: RequestInit) => {
@@ -175,6 +176,7 @@ export default function MuestrasPage() {
   const [showForm, setShowForm] = useState(false);
   const [editSample, setEditSample] = useState<Sample | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Sample | null>(null);
+  const [photoTarget, setPhotoTarget] = useState<Sample | null>(null);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
 
@@ -304,7 +306,7 @@ export default function MuestrasPage() {
                     <TableHead className="font-semibold text-slate-600 w-28">Fecha</TableHead>
                     <TableHead className="font-semibold text-slate-600">Propósito</TableHead>
                     <TableHead className="font-semibold text-slate-600 w-36">Estado</TableHead>
-                    {(canUpdate || canDelete) && <TableHead className="w-20"></TableHead>}
+                    <TableHead className="w-28"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -330,24 +332,31 @@ export default function MuestrasPage() {
                             {s.result && <p className="text-xs text-slate-400 mt-1">{s.result}</p>}
                           </div>
                         </TableCell>
-                        {(canUpdate || canDelete) && (
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              {canUpdate && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 hover:text-blue-600 hover:bg-blue-50"
-                                  onClick={() => setEditSample(s)}>
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </Button>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 hover:text-purple-600 hover:bg-purple-50"
+                              onClick={() => setPhotoTarget(s)} title="Ver / agregar fotos">
+                              <Camera className="w-3.5 h-3.5" />
+                              {s.photos && s.photos.length > 0 && (
+                                <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-purple-600 rounded-full text-[9px] text-white flex items-center justify-center font-bold">
+                                  {s.photos.length}
+                                </span>
                               )}
-                              {canDelete && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-red-600 hover:bg-red-50"
-                                  onClick={() => setDeleteTarget(s)}>
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        )}
+                            </Button>
+                            {canUpdate && (
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 hover:text-blue-600 hover:bg-blue-50"
+                                onClick={() => setEditSample(s)}>
+                                <Pencil className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+                            {canDelete && (
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                onClick={() => setDeleteTarget(s)}>
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -416,6 +425,28 @@ export default function MuestrasPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <Dialog open={!!photoTarget} onOpenChange={o => { if (!o) setPhotoTarget(null); }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Camera className="w-5 h-5 text-purple-600" />
+                Fotos — {photoTarget?.sampleCode}
+              </DialogTitle>
+            </DialogHeader>
+            {photoTarget && (
+              <PhotoGallery
+                recordId={photoTarget.id}
+                photos={photoTarget.photos ?? []}
+                uploadUrl={`/api/samples/${photoTarget.id}/photos`}
+                deleteUrl={idx => `/api/samples/${photoTarget.id}/photos/${idx}`}
+                queryKey={["/api/samples"]}
+                canUpload={!!canWrite}
+                canDelete={!!canUpdate}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );
