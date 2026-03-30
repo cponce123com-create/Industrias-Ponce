@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PhotoUrlManager } from "@/components/ui/PhotoUrlManager";
+import { SamplePhotoPanel } from "@/components/ui/SamplePhotoPanel";
 import { TestTube, Plus, Loader2, AlertCircle, Pencil, Trash2, Search, Camera } from "lucide-react";
 
 interface Sample {
@@ -427,19 +427,25 @@ export default function MuestrasPage() {
         </AlertDialog>
 
         <Dialog open={!!photoTarget} onOpenChange={o => { if (!o) setPhotoTarget(null); }}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Camera className="w-5 h-5 text-purple-600" />
                 Fotos — {photoTarget?.sampleCode}
               </DialogTitle>
+              <p className="text-xs text-slate-500 pt-1">
+                Las fotos se suben automáticamente a Google Drive y los enlaces quedan registrados en el sistema.
+              </p>
             </DialogHeader>
             {photoTarget && (
-              <PhotoUrlManager
+              <SamplePhotoPanel
+                sampleId={photoTarget.id}
+                sampleCode={photoTarget.sampleCode}
                 photos={photoTarget.photos ?? []}
-                patchUrl={`/api/samples/${photoTarget.id}/photos`}
+                canUpload={!!canWrite}
+                canDelete={!!canUpdate}
                 queryKey={["/api/samples"]}
-                canEdit={!!canWrite}
+                onUpdate={newPhotos => setPhotoTarget(prev => prev ? { ...prev, photos: newPhotos } : null)}
               />
             )}
           </DialogContent>
