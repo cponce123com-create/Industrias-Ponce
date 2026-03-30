@@ -125,6 +125,8 @@ router.get("/samples", requireAuth, asyncHandler(async (req, res) => {
 
 router.get("/disposition", requireAuth, asyncHandler(async (req, res) => {
   const { from, to, status } = req.query as Record<string, string | undefined>;
+  const dateFilter = buildDateFilter(finalDispositionTable.dispositionDate, from, to);
+  const statusFilter = status ? eq(finalDispositionTable.status, status) : undefined;
   const records = await db.select({
     id: finalDispositionTable.id,
     productId: finalDispositionTable.productId,
@@ -142,13 +144,10 @@ router.get("/disposition", requireAuth, asyncHandler(async (req, res) => {
     notes: finalDispositionTable.notes,
   }).from(finalDispositionTable)
     .leftJoin(productsTable, sql`${finalDispositionTable.productId} = ${productsTable.id}`)
+    .where(and(dateFilter, statusFilter))
     .orderBy(desc(finalDispositionTable.dispositionDate));
 
-  let filtered = records;
-  if (from) filtered = filtered.filter(r => !r.dispositionDate || r.dispositionDate >= from);
-  if (to) filtered = filtered.filter(r => !r.dispositionDate || r.dispositionDate <= to);
-  if (status) filtered = filtered.filter(r => r.status === status);
-  res.json(filtered.map(r => ({
+  res.json(records.map(r => ({
     ...r,
     productDisplayName: r.productName ?? r.productNameManual ?? "—",
   })));
