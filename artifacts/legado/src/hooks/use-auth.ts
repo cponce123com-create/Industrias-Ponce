@@ -1,7 +1,35 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-let memoryToken: string | null = null;
+// ---------------------------------------------------------------------------
+// Token persistence: stored in localStorage so it survives page refreshes
+// and React re-renders. memoryToken acts as an in-memory cache to avoid
+// repeated localStorage reads on every render.
+// ---------------------------------------------------------------------------
+const TOKEN_KEY = "auth_token";
+
+function readTokenFromStorage(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeTokenToStorage(token: string | null): void {
+  try {
+    if (token) {
+      localStorage.setItem(TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(TOKEN_KEY);
+    }
+  } catch {
+    // localStorage may be blocked — fail silently.
+  }
+}
+
+// Seed the in-memory cache from localStorage on module load.
+let memoryToken: string | null = readTokenFromStorage();
 
 export type WarehouseRole = "supervisor" | "operator" | "quality" | "admin" | "readonly";
 
@@ -40,6 +68,7 @@ export function useAuth() {
       if (!res.ok) {
         if (res.status === 401) {
           memoryToken = null;
+          writeTokenToStorage(null);
           setToken(null);
         }
         return null;
@@ -64,6 +93,7 @@ export function useAuth() {
 
     const result = await res.json();
     memoryToken = result.token;
+    writeTokenToStorage(result.token);
     setToken(result.token);
     queryClient.setQueryData(["/api/auth/me"], result.user);
     return result.user;
@@ -71,6 +101,7 @@ export function useAuth() {
 
   const logout = () => {
     memoryToken = null;
+    writeTokenToStorage(null);
     setToken(null);
     queryClient.setQueryData(["/api/auth/me"], null);
     queryClient.clear();
