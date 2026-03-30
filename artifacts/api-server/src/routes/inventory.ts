@@ -10,6 +10,7 @@ import { asyncHandler } from "../lib/async-handler.js";
 import { uploadFileToDrive } from "../lib/google-drive.js";
 import { writeAuditLog } from "../lib/audit.js";
 import { parsePagination } from "../lib/pagination.js";
+import { logger } from "../lib/logger.js";
 
 
 const router = Router();
@@ -72,7 +73,8 @@ async function uploadBoxPhotos(files: Files, productLabel: string, date: string)
         const fileName = buildInventoryPhotoName(productLabel, date, i + 1, ext);
         const { url } = await uploadFileToDrive(file.buffer, fileName, file.mimetype);
         urls.push(url);
-      } catch {
+      } catch (err) {
+        logger.warn({ err }, `Photo upload failed for box ${i}`);
         urls.push(null);
       }
     } else {
@@ -262,43 +264,57 @@ router.post(
     }
     const mainPhotoUrl = photoUrls[0] ?? legacyPhotoUrl;
 
+    // Detect photo upload failures
+    const photoWarnings = photoUrls.reduce((acc, url, i) => {
+      if (url === null && files[`photo${i}`]?.[0]) return acc + 1;
+      return acc;
+    }, 0);
+
     const id = generateId();
-    const [created] = await db.insert(inventoryRecordsTable).values({
-      id,
-      warehouse: parsed.data.warehouse,
-      productId: parsed.data.productId,
-      recordDate: parsed.data.recordDate,
-      responsible: parsed.data.responsible,
-      previousBalance: parsed.data.previousBalance,
-      inputs: parsed.data.inputs,
-      outputs: parsed.data.outputs,
-      finalBalance: parsed.data.finalBalance ?? physicalCount ?? parsed.data.previousBalance,
-      physicalCount: physicalCount ?? null,
-      photoUrl: mainPhotoUrl,
-      location: parsed.data.location ?? null,
-      notes: parsed.data.notes,
-      registeredBy: authedReq.userId,
-    }).returning();
+    let created: (typeof inventoryRecordsTable.$inferSelect) | undefined;
+    let boxes: (typeof inventoryBoxesTable.$inferSelect)[] = [];
 
-    for (let i = 0; i < boxEntries.length; i++) {
-      const box = boxEntries[i]!;
-      if (!box.weight && !box.lot && !photoUrls[i]) continue;
-      await db.insert(inventoryBoxesTable).values({
-        id: generateId(),
-        inventoryRecordId: id,
-        boxNumber: i + 1,
-        weight: box.weight || null,
-        lot: box.lot || null,
-        photoUrl: photoUrls[i],
-      });
-    }
+    await db.transaction(async (tx) => {
+      const [newRecord] = await tx.insert(inventoryRecordsTable).values({
+        id,
+        warehouse: parsed.data.warehouse,
+        productId: parsed.data.productId,
+        recordDate: parsed.data.recordDate,
+        responsible: parsed.data.responsible,
+        previousBalance: parsed.data.previousBalance,
+        inputs: parsed.data.inputs,
+        outputs: parsed.data.outputs,
+        finalBalance: parsed.data.finalBalance ?? physicalCount ?? parsed.data.previousBalance,
+        physicalCount: physicalCount ?? null,
+        photoUrl: mainPhotoUrl,
+        location: parsed.data.location ?? null,
+        notes: parsed.data.notes,
+        registeredBy: authedReq.userId,
+      }).returning();
+      created = newRecord;
 
-    const boxes = await db.select().from(inventoryBoxesTable)
-      .where(eq(inventoryBoxesTable.inventoryRecordId, id))
-      .orderBy(inventoryBoxesTable.boxNumber);
+      for (let i = 0; i < boxEntries.length; i++) {
+        const box = boxEntries[i]!;
+        if (!box.weight && !box.lot && !photoUrls[i]) continue;
+        await tx.insert(inventoryBoxesTable).values({
+          id: generateId(),
+          inventoryRecordId: id,
+          boxNumber: i + 1,
+          weight: box.weight || null,
+          lot: box.lot || null,
+          photoUrl: photoUrls[i],
+        });
+      }
+
+      boxes = await tx.select().from(inventoryBoxesTable)
+        .where(eq(inventoryBoxesTable.inventoryRecordId, id))
+        .orderBy(inventoryBoxesTable.boxNumber);
+    });
 
     void writeAuditLog({ userId: authedReq.userId, action: "create", resource: "inventory_record", resourceId: id, ipAddress: req.ip });
-    res.status(201).json({ ...created, boxes });
+    const responseBody: Record<string, unknown> = { ...created, boxes };
+    if (photoWarnings > 0) responseBody.photoWarnings = photoWarnings;
+    res.status(201).json(responseBody);
   })
 );
 

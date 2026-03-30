@@ -2,7 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import * as XLSX from "xlsx";
 import { db } from "@workspace/db";
-import { productsTable, inventoryRecordsTable, immobilizedProductsTable, samplesTable, dyeLotsTable, finalDispositionTable } from "@workspace/db";
+import { productsTable, inventoryRecordsTable, inventoryBoxesTable, immobilizedProductsTable, samplesTable, dyeLotsTable, finalDispositionTable, cuadreRecordsTable, cuadreItemsTable } from "@workspace/db";
 import { eq, count, and, sql } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthenticatedRequest } from "../lib/auth.js";
 import { generateId } from "../lib/id.js";
@@ -310,6 +310,9 @@ router.delete("/all", requireAuth, requireRole("admin"), asyncHandler(async (req
   const [{ value: totalProductos }] = await db.select({ value: count() }).from(productsTable);
   await writeAuditLog({ userId: authedReq.userId, action: "delete", resource: "products_all", details: { count: totalProductos }, ipAddress: req.ip });
   await db.transaction(async (tx) => {
+    await tx.delete(cuadreItemsTable);
+    await tx.delete(cuadreRecordsTable);
+    await tx.delete(inventoryBoxesTable);
     await tx.delete(dyeLotsTable);
     await tx.delete(finalDispositionTable);
     await tx.delete(immobilizedProductsTable);

@@ -1,0 +1,30 @@
+1 — Filtros de fecha en SQL (reportes lentos)
+En el archivo artifacts/api-server/src/routes/reports.ts, las rutas GET /reports/inventory, /reports/immobilized y /reports/samples traen todos los registros de la BD y filtran por fecha con .filter() en JavaScript. Esto es ineficiente y no escala.
+
+Corrígelas para que los filtros from, to y status (cuando aplique) se pasen directamente a la query de Drizzle usando gte y lte de drizzle-orm, antes de ejecutar la consulta. No cambies la firma del endpoint ni los parámetros de entrada. Mantén el filtro de product (búsqueda por nombre/código) en memoria si es necesario, ya que ese no tiene columna directa en todos los joins.
+
+2 — Transacción en creación de cajas
+En artifacts/api-server/src/routes/inventory.ts, el endpoint POST / inserta primero el registro principal en inventoryRecordsTable y luego inserta cada caja en inventoryBoxesTable con un bucle for secuencial, sin transacción. Si falla en medio del bucle quedan datos inconsistentes.
+
+Envuelve toda esa lógica (insert del registro principal + insert de todas las cajas) dentro de un db.transaction(async (tx) => { ... }). Usa tx en lugar de db dentro de la transacción. La subida de fotos a Google Drive debe ocurrir ANTES de la transacción, ya que es una operación externa. No cambies el comportamiento del endpoint ni su respuesta.
+
+3 — Fallo silencioso de fotos en Drive
+En artifacts/api-server/src/routes/inventory.ts, la función uploadBoxPhotos() hace catch de cada error y silenciosamente pone null en el array de URLs sin ningún aviso. El usuario no sabe que sus fotos no se subieron.
+
+Haz dos cambios:
+1. Dentro del catch de cada foto, agrega un log con logger.warn({ err }, `Photo upload failed for box ${i}`) usando el logger de ../lib/logger.js.
+2. En el endpoint POST /, después de llamar uploadBoxPhotos(), detecta si alguna URL quedó null cuando sí había un archivo enviado (es decir, files[`photo${i}`] existe pero photoUrls[i] es null). Si ocurre, agrega un campo photoWarnings: number en la respuesta JSON indicando cuántas fotos fallaron, sin cambiar el status code ni bloquear la creación del registro.
+
+4 — DELETE /products/all incompleto
+En artifacts/api-server/src/routes/products.ts, el endpoint DELETE /all borra en una transacción pero no incluye cuadreRecordsTable, cuadreItemsTable ni inventoryBoxesTable, lo que puede dejar registros huérfanos con FK a productos eliminados.
+
+Agrega los imports necesarios para cuadreRecordsTable, cuadreItemsTable e inventoryBoxesTable (ya están disponibles desde @workspace/db). Dentro del db.transaction() existente, agrega el borrado de esas tres tablas ANTES de borrar inventoryRecordsTable y productsTable, respetando el orden de dependencias de FK:
+1. eppDeliveriesTable y eppChecklistsTable (si las hay en la transacción, revisá)
+2. cuadreItemsTable
+3. cuadreRecordsTable  
+4. inventoryBoxesTable
+5. dyeLotsTable, finalDispositionTable, immobilizedProductsTable, samplesTable
+6. inventoryRecordsTable
+7. productsTable
+
+No cambies la lógica de confirmación ni la respuesta del endpoint.

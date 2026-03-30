@@ -44,6 +44,7 @@ router.get("/summary", requireAuth, asyncHandler(async (_req, res) => {
 
 router.get("/inventory", requireAuth, asyncHandler(async (req, res) => {
   const { from, to, product } = req.query as Record<string, string | undefined>;
+  const dateFilter = buildDateFilter(inventoryRecordsTable.recordDate, from, to);
   const records = await db.select({
     productId: inventoryRecordsTable.productId,
     productCode: productsTable.code,
@@ -61,6 +62,7 @@ router.get("/inventory", requireAuth, asyncHandler(async (req, res) => {
   }).from(inventoryRecordsTable)
     .innerJoin(productsTable, sql`${inventoryRecordsTable.productId} = ${productsTable.id}`)
     .leftJoin(usersTable, sql`${inventoryRecordsTable.registeredBy} = ${usersTable.id}`)
+    .where(dateFilter)
     .orderBy(desc(inventoryRecordsTable.recordDate), productsTable.code);
 
   // Last consumption date per product
@@ -75,8 +77,6 @@ router.get("/inventory", requireAuth, asyncHandler(async (req, res) => {
   }
 
   let filtered = records;
-  if (from) filtered = filtered.filter(r => !r.recordDate || r.recordDate >= from);
-  if (to) filtered = filtered.filter(r => !r.recordDate || r.recordDate <= to);
   if (product) filtered = filtered.filter(r =>
     r.productCode?.toLowerCase().includes(product.toLowerCase()) ||
     r.productName?.toLowerCase().includes(product.toLowerCase())
@@ -91,6 +91,8 @@ router.get("/inventory", requireAuth, asyncHandler(async (req, res) => {
 
 router.get("/immobilized", requireAuth, asyncHandler(async (req, res) => {
   const { from, to, status } = req.query as Record<string, string | undefined>;
+  const dateFilter = buildDateFilter(immobilizedProductsTable.immobilizedDate, from, to);
+  const statusFilter = status ? eq(immobilizedProductsTable.status, status) : undefined;
   const records = await db.select({
     id: immobilizedProductsTable.id,
     productId: immobilizedProductsTable.productId,
@@ -105,23 +107,20 @@ router.get("/immobilized", requireAuth, asyncHandler(async (req, res) => {
     photos: immobilizedProductsTable.photos,
   }).from(immobilizedProductsTable)
     .leftJoin(productsTable, sql`${immobilizedProductsTable.productId} = ${productsTable.id}`)
+    .where(and(dateFilter, statusFilter))
     .orderBy(desc(immobilizedProductsTable.immobilizedDate));
 
-  let filtered = records;
-  if (from) filtered = filtered.filter(r => !r.immobilizedDate || r.immobilizedDate >= from);
-  if (to) filtered = filtered.filter(r => !r.immobilizedDate || r.immobilizedDate <= to);
-  if (status) filtered = filtered.filter(r => r.status === status);
-  res.json(filtered);
+  res.json(records);
 }));
 
 router.get("/samples", requireAuth, asyncHandler(async (req, res) => {
   const { from, to, status } = req.query as Record<string, string | undefined>;
-  const records = await db.select().from(samplesTable).orderBy(desc(samplesTable.sampleDate));
-  let filtered = records;
-  if (from) filtered = filtered.filter(r => !r.sampleDate || r.sampleDate >= from);
-  if (to) filtered = filtered.filter(r => !r.sampleDate || r.sampleDate <= to);
-  if (status) filtered = filtered.filter(r => r.status === status);
-  res.json(filtered);
+  const dateFilter = buildDateFilter(samplesTable.sampleDate, from, to);
+  const statusFilter = status ? eq(samplesTable.status, status) : undefined;
+  const records = await db.select().from(samplesTable)
+    .where(and(dateFilter, statusFilter))
+    .orderBy(desc(samplesTable.sampleDate));
+  res.json(records);
 }));
 
 router.get("/disposition", requireAuth, asyncHandler(async (req, res) => {
