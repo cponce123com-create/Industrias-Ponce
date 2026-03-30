@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Recycle, Plus, Loader2, AlertCircle, Pencil, Trash2, CheckCircle2, ChevronsUpDown, Check, Camera } from "lucide-react";
-import { PhotoGallery } from "@/components/ui/PhotoGallery";
+import { PhotoUrlManager } from "@/components/ui/PhotoUrlManager";
 
 interface Product { id: string; code: string; name: string; unit: string; }
 interface Disposition {
@@ -515,14 +515,11 @@ export default function DisposicionFinalPage() {
               </DialogTitle>
             </DialogHeader>
             {photoTarget && (
-              <PhotoGallery
-                recordId={photoTarget.id}
+              <PhotoUrlManager
                 photos={photoTarget.photos ?? []}
-                uploadUrl={`/api/disposition/${photoTarget.id}/photos`}
-                deleteUrl={idx => `/api/disposition/${photoTarget.id}/photos/${idx}`}
+                patchUrl={`/api/disposition/${photoTarget.id}/photos`}
                 queryKey={["/api/disposition"]}
-                canUpload={!!canWrite}
-                canDelete={!!canManage}
+                canEdit={!!canWrite}
               />
             )}
           </DialogContent>

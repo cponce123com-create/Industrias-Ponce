@@ -320,12 +320,17 @@ router.get("/export/:type", requireAuth, asyncHandler(async (req, res) => {
     sheetName = "Inmovilizados";
   } else if (type === "samples") {
     const records = await db.select().from(samplesTable).orderBy(desc(samplesTable.sampleDate));
-    data = records.map(r => ({
-      "Código Muestra": r.sampleCode, "Producto": r.productName ?? r.productId,
-      "Proveedor": r.supplier, "Cantidad": r.quantity, "Unidad": r.unit,
-      "Fecha": fmtDate(r.sampleDate), "Propósito": r.purpose, "Estado": r.status,
-      "Lab. Referencia": r.labReference, "Resultado": r.result,
-    }));
+    data = records.map(r => {
+      const photos = (r.photos as string[] | null) ?? [];
+      return {
+        "Código Muestra": r.sampleCode, "Producto": r.productName ?? r.productId,
+        "Proveedor": r.supplier, "Cantidad": r.quantity, "Unidad": r.unit,
+        "Fecha": fmtDate(r.sampleDate), "Propósito": r.purpose, "Estado": r.status,
+        "Lab. Referencia": r.labReference, "Resultado": r.result,
+        "Foto 1": photos[0] ?? "", "Foto 2": photos[1] ?? "",
+        "Foto 3": photos[2] ?? "", "Foto 4": photos[3] ?? "", "Foto 5": photos[4] ?? "",
+      };
+    });
     sheetName = "Muestras";
   } else if (type === "disposition") {
     const records = await db.select({
@@ -335,15 +340,21 @@ router.get("/export/:type", requireAuth, asyncHandler(async (req, res) => {
       dispositionDate: finalDispositionTable.dispositionDate,
       contractor: finalDispositionTable.contractor, manifestNumber: finalDispositionTable.manifestNumber,
       status: finalDispositionTable.status, cost: finalDispositionTable.cost,
+      photos: finalDispositionTable.photos,
     }).from(finalDispositionTable)
       .leftJoin(productsTable, sql`${finalDispositionTable.productId} = ${productsTable.id}`)
       .orderBy(desc(finalDispositionTable.dispositionDate));
-    data = records.map(r => ({
-      "Producto": r.productName ?? r.productNameManual, "Cantidad": r.quantity, "Unidad": r.unit,
-      "Tipo Disposición": r.dispositionType, "Fecha": fmtDate(r.dispositionDate),
-      "Empresa": r.contractor, "Manifiesto": r.manifestNumber,
-      "Estado": r.status, "Costo": r.cost,
-    }));
+    data = records.map(r => {
+      const photos = (r.photos as string[] | null) ?? [];
+      return {
+        "Producto": r.productName ?? r.productNameManual, "Cantidad": r.quantity, "Unidad": r.unit,
+        "Tipo Disposición": r.dispositionType, "Fecha": fmtDate(r.dispositionDate),
+        "Empresa": r.contractor, "Manifiesto": r.manifestNumber,
+        "Estado": r.status, "Costo": r.cost,
+        "Foto 1": photos[0] ?? "", "Foto 2": photos[1] ?? "",
+        "Foto 3": photos[2] ?? "", "Foto 4": photos[3] ?? "", "Foto 5": photos[4] ?? "",
+      };
+    });
     sheetName = "Disposición Final";
   } else if (type === "epp") {
     const records = await db.select({

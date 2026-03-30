@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PhotoGallery } from "@/components/ui/PhotoGallery";
+import { PhotoUrlManager } from "@/components/ui/PhotoUrlManager";
 import { TestTube, Plus, Loader2, AlertCircle, Pencil, Trash2, Search, Camera } from "lucide-react";
 
 interface Sample {
@@ -435,14 +435,11 @@ export default function MuestrasPage() {
               </DialogTitle>
             </DialogHeader>
             {photoTarget && (
-              <PhotoGallery
-                recordId={photoTarget.id}
+              <PhotoUrlManager
                 photos={photoTarget.photos ?? []}
-                uploadUrl={`/api/samples/${photoTarget.id}/photos`}
-                deleteUrl={idx => `/api/samples/${photoTarget.id}/photos/${idx}`}
+                patchUrl={`/api/samples/${photoTarget.id}/photos`}
                 queryKey={["/api/samples"]}
-                canUpload={!!canWrite}
-                canDelete={!!canUpdate}
+                canEdit={!!canWrite}
               />
             )}
           </DialogContent>
