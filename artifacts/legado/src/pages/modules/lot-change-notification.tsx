@@ -214,16 +214,29 @@ export default function LotChangeNotificationPage() {
           </div>
 
           {/* Submit */}
-          <Button
-            type="submit"
-            disabled={sendMutation.isPending}
-            className="w-full bg-amber-500 hover:bg-amber-600 text-white gap-2 h-11 text-base font-semibold"
-          >
-            {sendMutation.isPending
-              ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando…</>
-              : <><Bell className="w-4 h-4" /> Enviar Notificación</>
-            }
-          </Button>
+<Button
+  type="submit"
+  disabled={sendMutation.isPending}
+  className="w-full text-white gap-2 h-11 text-base font-semibold"
+  style={{
+    backgroundColor: sendMutation.isPending ? "#9ca3af" : "#f59e0b"
+  }}
+  onMouseOver={(e) => {
+    if (!sendMutation.isPending) {
+      e.currentTarget.style.backgroundColor = "#d97706"
+    }
+  }}
+  onMouseOut={(e) => {
+    if (!sendMutation.isPending) {
+      e.currentTarget.style.backgroundColor = "#f59e0b"
+    }
+  }}
+>
+  {sendMutation.isPending
+    ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando…</>
+    : <><Bell className="w-4 h-4" /> Enviar Notificación</>
+  }
+</Button>
         </form>
 
         {/* Recipients info box */}
