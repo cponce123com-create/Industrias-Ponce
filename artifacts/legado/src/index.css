@@ -54,11 +54,9 @@
 }
 
 :root {
-  /* Fondo general — azul pizarra muy claro */
   --background: 210 25% 97%;
   --foreground: 213 45% 10%;
 
-  /* Primario: Teal científico — evoca laboratorio e industria química */
   --primary: 184 85% 30%;
   --primary-foreground: 0 0% 100%;
 
@@ -68,7 +66,6 @@
   --muted: 210 20% 94%;
   --muted-foreground: 213 20% 46%;
 
-  /* Acento ámbar — color de advertencia química */
   --accent: 38 92% 50%;
   --accent-foreground: 38 80% 15%;
 
@@ -87,7 +84,6 @@
   --popover-foreground: 213 45% 10%;
   --popover-border: 210 25% 88%;
 
-  /* Sidebar oscuro — navy profundo para máximo contraste */
   --sidebar: 213 62% 9%;
   --sidebar-foreground: 210 30% 88%;
   --sidebar-border: 213 45% 16%;
@@ -137,81 +133,235 @@
     @apply border-border;
     forced-color-adjust: none !important;
   }
+
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-serif tracking-tight;
   }
 }
 
-/* Colores forzados para monitores corporativos con alto contraste */
-.bg-primary        { background-color: #0d7f85 !important; color: white !important; }
-.text-primary      { color: #0d7f85 !important; }
-.border-primary    { border-color: #0d7f85 !important; }
-.bg-primary\/10    { background-color: #0d7f8519 !important; }
-.bg-primary\/20    { background-color: #0d7f8533 !important; }
+/* ===== COMPATIBILIDAD FORZADA PARA CHROME ANTIGUO / PCS DE PLANTA ===== */
 
-/* Fondos de secciones comunes */
-.bg-slate-50       { background-color: #f1f5f9 !important; }
-.bg-slate-100      { background-color: #e8edf3 !important; }
-.bg-teal-50        { background-color: #f0fdfa !important; }
-.bg-teal-100       { background-color: #ccfbf1 !important; }
-.bg-teal-600       { background-color: #0d9488 !important; color: white !important; }
-.bg-teal-700       { background-color: #0f766e !important; color: white !important; }
+/* Primarios */
+.bg-primary { background-color: #0d7f85 !important; color: #ffffff !important; }
+.text-primary { color: #0d7f85 !important; }
+.border-primary { border-color: #0d7f85 !important; }
+.bg-primary\/10 { background-color: rgba(13, 127, 133, 0.10) !important; }
+.bg-primary\/20 { background-color: rgba(13, 127, 133, 0.20) !important; }
+
+/* Blancos / texto / fondos base */
+.bg-white { background-color: #ffffff !important; }
+.text-white { color: #ffffff !important; }
+.text-black { color: #000000 !important; }
+.text-gray-800 { color: #1f2937 !important; }
+.text-gray-700 { color: #374151 !important; }
+.text-gray-600 { color: #4b5563 !important; }
+.text-slate-900 { color: #0f172a !important; }
+.text-slate-800 { color: #1e293b !important; }
+.text-slate-700 { color: #334155 !important; }
+.text-slate-600 { color: #475569 !important; }
+.text-slate-500 { color: #64748b !important; }
+.text-muted-foreground { color: #6b7280 !important; }
+
+.bg-background { background-color: #f8fafc !important; }
+.bg-card { background-color: #ffffff !important; }
+.bg-popover { background-color: #ffffff !important; }
+
+/* Slate */
+.bg-slate-50 { background-color: #f8fafc !important; }
+.bg-slate-100 { background-color: #f1f5f9 !important; }
+.bg-slate-200 { background-color: #e2e8f0 !important; }
+.bg-slate-300 { background-color: #cbd5e1 !important; }
+.hover\:bg-slate-50:hover { background-color: #f8fafc !important; }
+.hover\:bg-slate-100:hover { background-color: #f1f5f9 !important; }
+.hover\:bg-slate-200:hover { background-color: #e2e8f0 !important; }
+.hover\:bg-slate-300:hover { background-color: #cbd5e1 !important; }
+
+/* Teal */
+.bg-teal-50 { background-color: #f0fdfa !important; }
+.bg-teal-100 { background-color: #ccfbf1 !important; }
+.bg-teal-500 { background-color: #14b8a6 !important; color: #ffffff !important; }
+.bg-teal-600 { background-color: #0d9488 !important; color: #ffffff !important; }
+.bg-teal-700 { background-color: #0f766e !important; color: #ffffff !important; }
+.text-teal-600 { color: #0d9488 !important; }
+.text-teal-700 { color: #0f766e !important; }
+.border-teal-500 { border-color: #14b8a6 !important; }
+.border-teal-600 { border-color: #0d9488 !important; }
+.hover\:bg-teal-500:hover { background-color: #14b8a6 !important; }
 .hover\:bg-teal-600:hover { background-color: #0d9488 !important; }
 .hover\:bg-teal-700:hover { background-color: #0f766e !important; }
-.bg-emerald-100    { background-color: #d1fae5 !important; }
-.bg-emerald-600    { background-color: #059669 !important; color: white !important; }
-.bg-emerald-700    { background-color: #047857 !important; color: white !important; }
+
+/* Emerald */
+.bg-emerald-50 { background-color: #ecfdf5 !important; }
+.bg-emerald-100 { background-color: #d1fae5 !important; }
+.bg-emerald-600 { background-color: #059669 !important; color: #ffffff !important; }
+.bg-emerald-700 { background-color: #047857 !important; color: #ffffff !important; }
+.text-emerald-600 { color: #059669 !important; }
 .hover\:bg-emerald-600:hover { background-color: #059669 !important; }
 .hover\:bg-emerald-700:hover { background-color: #047857 !important; }
-.bg-violet-50      { background-color: #f5f3ff !important; }
-.bg-violet-100     { background-color: #ede9fe !important; }
-.bg-indigo-100     { background-color: #e0e7ff !important; }
-.bg-indigo-600     { background-color: #4f46e5 !important; color: white !important; }
-.text-teal-600     { color: #0d9488 !important; }
-.text-emerald-600  { color: #059669 !important; }
-.bg-cyan-50        { background-color: #ecfeff !important; }
-.bg-cyan-100       { background-color: #cffafe !important; }
-.bg-amber-50       { background-color: #fffbeb !important; }
-.bg-amber-100      { background-color: #fef3c7 !important; }
-.bg-green-50       { background-color: #f0fdf4 !important; }
-.bg-green-100      { background-color: #dcfce7 !important; }
-.bg-red-50         { background-color: #fef2f2 !important; }
-.bg-red-100        { background-color: #fee2e2 !important; }
-.bg-blue-50        { background-color: #eff6ff !important; }
-.bg-blue-100       { background-color: #dbeafe !important; }
 
-.bg-violet-600 { background-color: #7c3aed !important; }
-.bg-violet-700 { background-color: #6d28d9 !important; }
+/* Violet / Purple / Indigo / Blue */
+.bg-violet-50 { background-color: #f5f3ff !important; }
+.bg-violet-100 { background-color: #ede9fe !important; }
+.bg-violet-600 { background-color: #7c3aed !important; color: #ffffff !important; }
+.bg-violet-700 { background-color: #6d28d9 !important; color: #ffffff !important; }
+.hover\:bg-violet-600:hover { background-color: #7c3aed !important; }
+.hover\:bg-violet-700:hover { background-color: #6d28d9 !important; }
 
-.bg-purple-600 { background-color: #9333ea !important; }
-.bg-purple-700 { background-color: #7e22ce !important; }
+.bg-purple-600 { background-color: #9333ea !important; color: #ffffff !important; }
+.bg-purple-700 { background-color: #7e22ce !important; color: #ffffff !important; }
+.hover\:bg-purple-600:hover { background-color: #9333ea !important; }
+.hover\:bg-purple-700:hover { background-color: #7e22ce !important; }
 
-.bg-blue-600 { background-color: #2563eb !important; }
-.bg-blue-700 { background-color: #1d4ed8 !important; }
+.bg-indigo-100 { background-color: #e0e7ff !important; }
+.bg-indigo-600 { background-color: #4f46e5 !important; color: #ffffff !important; }
+.bg-indigo-700 { background-color: #4338ca !important; color: #ffffff !important; }
+.hover\:bg-indigo-600:hover { background-color: #4f46e5 !important; }
+.hover\:bg-indigo-700:hover { background-color: #4338ca !important; }
 
-.bg-red-600 { background-color: #dc2626 !important; }
-.bg-red-700 { background-color: #b91c1c !important; }
+.bg-blue-50 { background-color: #eff6ff !important; }
+.bg-blue-100 { background-color: #dbeafe !important; }
+.bg-blue-600 { background-color: #2563eb !important; color: #ffffff !important; }
+.bg-blue-700 { background-color: #1d4ed8 !important; color: #ffffff !important; }
+.hover\:bg-blue-600:hover { background-color: #2563eb !important; }
+.hover\:bg-blue-700:hover { background-color: #1d4ed8 !important; }
 
-.text-white { color: #ffffff !important; }
+/* Amber / Green / Red / Cyan */
+.bg-cyan-50 { background-color: #ecfeff !important; }
+.bg-cyan-100 { background-color: #cffafe !important; }
 
-.border-slate-300 { border-color: #d1d5db !important; }
+.bg-amber-50 { background-color: #fffbeb !important; }
+.bg-amber-100 { background-color: #fef3c7 !important; }
 
-.bg-white { background-color: #ffffff !important; }
-.text-gray-800 { color: #1f2937 !important; }
-.hover\:bg-gray-100:hover { background-color: #f3f4f6 !important; }
+.bg-green-50 { background-color: #f0fdf4 !important; }
+.bg-green-100 { background-color: #dcfce7 !important; }
 
+.bg-red-50 { background-color: #fef2f2 !important; }
+.bg-red-100 { background-color: #fee2e2 !important; }
+.bg-red-600 { background-color: #dc2626 !important; color: #ffffff !important; }
+.bg-red-700 { background-color: #b91c1c !important; color: #ffffff !important; }
+.hover\:bg-red-600:hover { background-color: #dc2626 !important; }
+.hover\:bg-red-700:hover { background-color: #b91c1c !important; }
+
+/* Borders */
 .border { border-width: 1px !important; border-style: solid !important; }
-.border-slate-100  { border-color: #e2e8f0 !important; }
-.border-slate-200  { border-color: #cbd5e1 !important; }
+.border-slate-100 { border-color: #e2e8f0 !important; }
+.border-slate-200 { border-color: #cbd5e1 !important; }
+.border-slate-300 { border-color: #d1d5db !important; }
+.border-gray-300 { border-color: #d1d5db !important; }
+.border-input { border-color: #d1d5db !important; }
+.border-border { border-color: #dbe3ea !important; }
 
-button, .button {
+/* Botones */
+button,
+.button,
+[role="button"] {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  border-radius: 0.375rem !important;
 }
 
+button:disabled,
+.button:disabled,
+[role="button"][disabled],
+[data-disabled] {
+  opacity: 0.55 !important;
+  background-color: #cbd5e1 !important;
+  color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  cursor: not-allowed !important;
+}
+
+/* Inputs / textarea / select nativos */
+input,
+textarea,
+select {
+  background-color: #ffffff !important;
+  color: #1f2937 !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 0.5rem !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none !important;
+  border-color: #14b8a6 !important;
+  box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.18) !important;
+}
+
+/* Soporte Radix / shadcn */
+[data-slot="input"],
+[data-slot="textarea"],
+[data-slot="select-trigger"],
+[data-slot="button"] {
+  forced-color-adjust: none !important;
+}
+
+/* Select trigger */
+[data-radix-select-trigger],
+button[role="combobox"],
+[role="combobox"] {
+  background-color: #ffffff !important;
+  color: #1f2937 !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 0.5rem !important;
+  min-height: 2.5rem !important;
+}
+
+/* Select content */
+[data-radix-popper-content-wrapper] [role="listbox"],
+[data-radix-select-content],
+[data-side] {
+  background-color: #ffffff !important;
+  border: 1px solid #d1d5db !important;
+  color: #1f2937 !important;
+}
+
+/* Items del select / dropdown */
+[role="option"],
+[data-radix-select-item],
+[data-highlighted] {
+  color: #1f2937 !important;
+}
+
+[role="option"][data-highlighted],
+[data-radix-select-item][data-highlighted] {
+  background-color: #14b8a6 !important;
+  color: #ffffff !important;
+}
+
+/* Menús / popovers / dialog */
+[role="dialog"],
+[role="menu"],
+[role="listbox"],
+[data-radix-popper-content-wrapper] > div,
+[data-state="open"] {
+  forced-color-adjust: none !important;
+}
+
+/* Cards y paneles */
 .glass-panel {
   @apply bg-white/70 backdrop-blur-xl border border-white/50 shadow-xl;
+}
+
+.rounded-md { border-radius: 0.375rem !important; }
+.rounded-lg { border-radius: 0.5rem !important; }
+.rounded-xl { border-radius: 0.75rem !important; }
+
+/* Hover de grises comunes */
+.hover\:bg-gray-100:hover { background-color: #f3f4f6 !important; }
+.hover\:bg-gray-200:hover { background-color: #e5e7eb !important; }
+
+/* Seguridad extra para fondos transparentes accidentales */
+.bg-transparent {
+  background-color: transparent !important;
 }
