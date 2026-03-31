@@ -93,7 +93,7 @@ export const modules: Array<{
   { name: "Administración",       href: "/admin-users",  icon: Settings },
 ];
 
-function NavItem({ item, onClick }: { item: typeof modules[0]; onClick?: () => void }) {
+function NavItem({ item, onClick, mobile = false }: { item: typeof modules[0]; onClick?: () => void; mobile?: boolean }) {
   const [location] = useLocation();
   const isActive = location === item.href || location.startsWith(item.href + "/");
   const [hovered, setHovered] = useState(false);
@@ -112,18 +112,19 @@ function NavItem({ item, onClick }: { item: typeof modules[0]; onClick?: () => v
         display: "flex",
         alignItems: "center",
         gap: "10px",
-        padding: "9px 12px",
+        padding: mobile ? "13px 14px" : "9px 12px",
         borderRadius: "8px",
-        fontSize: "13.5px",
+        fontSize: mobile ? "14.5px" : "13.5px",
         fontWeight: isActive ? 600 : 400,
         backgroundColor: bgColor,
         color: textColor,
         textDecoration: "none",
         transition: "background-color 0.12s, color 0.12s",
         marginBottom: "2px",
+        minHeight: mobile ? "48px" : undefined,
       }}
     >
-      <item.icon style={{ width: 17, height: 17, color: iconColor, flexShrink: 0 }} />
+      <item.icon style={{ width: mobile ? 20 : 17, height: mobile ? 20 : 17, color: iconColor, flexShrink: 0 }} />
       <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {item.name}
       </span>
@@ -131,6 +132,73 @@ function NavItem({ item, onClick }: { item: typeof modules[0]; onClick?: () => v
         <ChevronRight style={{ width: 14, height: 14, color: SB.activeIcon, opacity: 0.8, flexShrink: 0 }} />
       )}
     </Link>
+  );
+}
+
+// Bottom nav items shown on mobile (up to 4, filtered by role, + Menú)
+const BOTTOM_NAV: Array<{ name: string; href: string; icon: React.ElementType; roles?: ModuleRole[] }> = [
+  { name: "Inicio",      href: "/dashboard",           icon: LayoutDashboard },
+  { name: "Inventario",  href: "/inventory",            icon: ClipboardList },
+  { name: "Suministros", href: "/supplies",             icon: PackageSearch,  roles: ["operator","supervisor","admin"] },
+  { name: "Correos",     href: "/email-notifications",  icon: Mail,           roles: ["operator","supervisor","admin"] },
+  { name: "Reportes",    href: "/reports",              icon: BarChart2 },
+];
+
+function MobileBottomNav({ onMenuOpen }: { onMenuOpen: () => void }) {
+  const [location] = useLocation();
+  const { user } = useAuth();
+
+  const visibleItems = BOTTOM_NAV
+    .filter(item => !item.roles || (user?.role && item.roles.includes(user.role as ModuleRole)))
+    .slice(0, 4);
+
+  return (
+    <div
+      className="lg:hidden"
+      style={{
+        position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 40,
+        backgroundColor: "#ffffff",
+        borderTop: "1px solid #e2e8f0",
+        boxShadow: "0 -2px 12px rgba(0,0,0,0.08)",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        display: "flex",
+      }}
+    >
+      {visibleItems.map(item => {
+        const isActive = location === item.href || location.startsWith(item.href + "/");
+        const Icon = item.icon;
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            style={{
+              flex: 1,
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+              height: 58, gap: 3, textDecoration: "none",
+              color: isActive ? "#0d9488" : "#94a3b8",
+              backgroundColor: isActive ? "rgba(13,148,136,0.06)" : "transparent",
+              transition: "color 0.12s, background-color 0.12s",
+            }}
+          >
+            <Icon style={{ width: 22, height: 22 }} />
+            <span style={{ fontSize: 10, fontWeight: isActive ? 600 : 400, lineHeight: 1 }}>
+              {item.name}
+            </span>
+          </Link>
+        );
+      })}
+      <button
+        onClick={onMenuOpen}
+        style={{
+          flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          height: 58, gap: 3, border: "none", background: "transparent", cursor: "pointer",
+          color: "#94a3b8",
+        }}
+      >
+        <Menu style={{ width: 22, height: 22 }} />
+        <span style={{ fontSize: 10, lineHeight: 1 }}>Más</span>
+      </button>
+    </div>
   );
 }
 
@@ -196,7 +264,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
         {modules
           .filter(item => !item.roles || (user?.role && item.roles.includes(user.role as ModuleRole)))
           .map((item) => (
-            <NavItem key={item.href} item={item} onClick={onNavClick} />
+            <NavItem key={item.href} item={item} onClick={onNavClick} mobile={!!onNavClick} />
           ))}
       </nav>
 
@@ -351,9 +419,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
               {/* Warehouse selector */}
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <Warehouse style={{ width: 16, height: 16, color: "#0d9488", flexShrink: 0 }} />
+                <Warehouse className="hidden sm:block" style={{ width: 16, height: 16, color: "#0d9488", flexShrink: 0 }} />
                 <Select value={warehouse} onValueChange={(v) => setWarehouse(v as WarehouseType)}>
-                  <SelectTrigger className="h-8 w-40 text-xs" style={{ borderColor: "#99d8d5" }}>
+                  <SelectTrigger className="h-8 w-28 sm:w-40 text-xs" style={{ borderColor: "#99d8d5" }}>
                     <SelectValue placeholder="Almacén" />
                   </SelectTrigger>
                   <SelectContent>
@@ -391,10 +459,12 @@ export function AppLayout({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main style={{ flex: 1 }} className="p-4 sm:p-6 lg:p-8">
+        <main style={{ flex: 1 }} className="p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
           {children}
         </main>
       </div>
+
+      <MobileBottomNav onMenuOpen={() => setMobileOpen(true)} />
     </div>
   );
 }

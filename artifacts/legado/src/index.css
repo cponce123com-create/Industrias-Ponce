@@ -490,3 +490,41 @@ button[role="combobox"],
 .bg-transparent {
   background-color: transparent !important;
 }
+
+/* ── Mobile optimizations ──────────────────────────────────────────────── */
+
+/* Touch-friendly scroll in tables on mobile */
+@media (max-width: 1024px) {
+  .overflow-auto,
+  [class*="overflow-auto"] {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Ensure table wrappers scroll horizontally */
+  .rounded-xl table,
+  .rounded-lg table,
+  .border table {
+    min-width: max-content;
+  }
+}
+
+/* Minimum touch target for interactive elements on mobile */
+@media (max-width: 1024px) {
+  button:not([style*="height"]):not(.h-6):not(.h-7):not(.h-8):not(.h-9):not(.h-10) {
+    min-height: 40px;
+  }
+  input[type="text"],
+  input[type="email"],
+  input[type="number"],
+  input[type="date"],
+  input[type="password"],
+  select,
+  textarea {
+    font-size: 16px !important; /* Prevents iOS auto-zoom on focus */
+  }
+}
+
+/* Safe area bottom padding for iPhone notch / Dynamic Island */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
