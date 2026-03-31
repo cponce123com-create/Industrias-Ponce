@@ -255,6 +255,96 @@
 .border-input { border-color: #d1d5db !important; }
 .border-border { border-color: #dbe3ea !important; }
 
+/* ===== FIX DASHBOARD COLORIDO ===== */
+
+/* ORANGE */
+.bg-orange-50 { background-color: #fff7ed !important; }
+.bg-orange-100 { background-color: #ffedd5 !important; }
+.border-orange-100 { border-color: #ffedd5 !important; }
+.border-orange-300 { border-color: #fdba74 !important; }
+.text-orange-600 { color: #ea580c !important; }
+.hover\:border-orange-300:hover { border-color: #fdba74 !important; }
+
+/* ROSE */
+.bg-rose-50 { background-color: #fff1f2 !important; }
+.bg-rose-100 { background-color: #ffe4e6 !important; }
+.border-rose-100 { border-color: #ffe4e6 !important; }
+.border-rose-300 { border-color: #fda4af !important; }
+.text-rose-600 { color: #e11d48 !important; }
+.hover\:border-rose-300:hover { border-color: #fda4af !important; }
+
+/* LIME */
+.bg-lime-50 { background-color: #f7fee7 !important; }
+.bg-lime-100 { background-color: #ecfccb !important; }
+.border-lime-100 { border-color: #ecfccb !important; }
+.border-lime-300 { border-color: #bef264 !important; }
+.text-lime-600 { color: #65a30d !important; }
+.hover\:border-lime-300:hover { border-color: #bef264 !important; }
+
+/* FUCHSIA */
+.bg-fuchsia-50 { background-color: #fdf4ff !important; }
+.bg-fuchsia-100 { background-color: #fae8ff !important; }
+.border-fuchsia-100 { border-color: #fae8ff !important; }
+.border-fuchsia-300 { border-color: #f0abfc !important; }
+.text-fuchsia-600 { color: #c026d3 !important; }
+.hover\:border-fuchsia-300:hover { border-color: #f0abfc !important; }
+
+/* PURPLE */
+.bg-purple-50 { background-color: #faf5ff !important; }
+.bg-purple-100 { background-color: #f3e8ff !important; }
+.border-purple-100 { border-color: #f3e8ff !important; }
+.border-purple-300 { border-color: #d8b4fe !important; }
+.text-purple-600 { color: #9333ea !important; }
+.hover\:border-purple-300:hover { border-color: #d8b4fe !important; }
+
+/* INDIGO */
+.bg-indigo-50 { background-color: #eef2ff !important; }
+.border-indigo-100 { border-color: #e0e7ff !important; }
+.border-indigo-300 { border-color: #a5b4fc !important; }
+.text-indigo-600 { color: #4f46e5 !important; }
+.hover\:border-indigo-300:hover { border-color: #a5b4fc !important; }
+
+/* EMERALD */
+.border-emerald-100 { border-color: #d1fae5 !important; }
+.border-emerald-300 { border-color: #6ee7b7 !important; }
+.hover\:border-emerald-300:hover { border-color: #6ee7b7 !important; }
+
+/* TEAL */
+.border-teal-100 { border-color: #ccfbf1 !important; }
+.border-teal-300 { border-color: #5eead4 !important; }
+.hover\:border-teal-300:hover { border-color: #5eead4 !important; }
+
+/* VIOLET */
+.border-violet-100 { border-color: #ede9fe !important; }
+.border-violet-300 { border-color: #c4b5fd !important; }
+.text-violet-600 { color: #7c3aed !important; }
+.hover\:border-violet-300:hover { border-color: #c4b5fd !important; }
+
+/* AMBER */
+.text-amber-600 { color: #d97706 !important; }
+.border-amber-100 { border-color: #fef3c7 !important; }
+.border-amber-300 { border-color: #fcd34d !important; }
+.hover\:border-amber-300:hover { border-color: #fcd34d !important; }
+
+/* CYAN */
+.border-cyan-100 { border-color: #cffafe !important; }
+.border-cyan-300 { border-color: #67e8f9 !important; }
+.text-cyan-600 { color: #0891b2 !important; }
+.hover\:border-cyan-300:hover { border-color: #67e8f9 !important; }
+
+/* RED */
+.border-red-100 { border-color: #fee2e2 !important; }
+.border-red-300 { border-color: #fca5a5 !important; }
+.text-red-600 { color: #dc2626 !important; }
+.hover\:border-red-300:hover { border-color: #fca5a5 !important; }
+
+/* SLATE */
+.border-slate-400 { border-color: #94a3b8 !important; }
+.hover\:border-slate-400:hover { border-color: #94a3b8 !important; }
+
+/* WHITE WITH OPACITY USED IN DASHBOARD ICON BOXES */
+.bg-white\/70 { background-color: rgba(255, 255, 255, 0.7) !important; }
+
 /* Botones */
 button,
 .button,
