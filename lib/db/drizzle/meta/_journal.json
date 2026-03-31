@@ -41,7 +41,7 @@
       "idx": 5,
       "version": "7",
       "when": 1774629900000,
-      "tag": "0005_revoked_tokens",
+      "tag": "0005_fixes_and_revoked_tokens",
       "breakpoints": true
     }
   ]
