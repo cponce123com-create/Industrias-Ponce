@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { getAuthHeaders, useAuth } from "@/hooks/use-auth";
@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SamplePhotoPanel } from "@/components/ui/SamplePhotoPanel";
-import { TestTube, Plus, Loader2, AlertCircle, Pencil, Trash2, Search, Camera } from "lucide-react";
+import { TestTube, Plus, Loader2, AlertCircle, Pencil, Trash2, Search, Camera, X, Image as ImageIcon } from "lucide-react";
 
 interface Sample {
   id: string; productId?: string | null; productName?: string | null;
@@ -20,6 +20,12 @@ interface Sample {
   sampleDate: string; purpose: string; destination?: string | null;
   labReference?: string | null; status: string; result?: string | null;
   notes?: string | null; takenBy: string; photos?: string[] | null;
+}
+
+interface PendingPhoto {
+  id: string;
+  file: File;
+  preview: string;
 }
 
 const api = async (path: string, opts?: RequestInit) => {
@@ -39,6 +45,7 @@ const SAMPLE_STATUS: Record<string, { label: string; className: string }> = {
 
 const PURPOSES = ["Análisis de calidad", "Control de proceso", "Certificación", "Investigación", "Auditoría", "Otro"];
 const UNITS = ["L", "mL", "kg", "g", "mg", "unidad"];
+const DESTINATIONS = ["LABORATORIO", "ESTAMPADO", "TINTORERIA"];
 
 const emptyForm = () => ({
   productName: "", supplier: "", sampleCode: "", quantity: "", unit: "mL",
@@ -46,14 +53,123 @@ const emptyForm = () => ({
   status: "pending", result: "", notes: "",
 });
 
+function PhotoPickerInline({
+  pendingPhotos,
+  onChange,
+}: {
+  pendingPhotos: PendingPhoto[];
+  onChange: (photos: PendingPhoto[]) => void;
+}) {
+  const galleryRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+
+  const addFiles = useCallback((files: FileList | null) => {
+    if (!files) return;
+    const arr = Array.from(files).filter(f => f.type.startsWith("image/"));
+    if (arr.length === 0) return;
+    const slots = 5 - pendingPhotos.length;
+    if (slots <= 0) return;
+    const toAdd = arr.slice(0, slots).map(file => ({
+      id: Math.random().toString(36).slice(2),
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+    onChange([...pendingPhotos, ...toAdd]);
+  }, [pendingPhotos, onChange]);
+
+  const remove = (id: string) => {
+    const removed = pendingPhotos.find(p => p.id === id);
+    if (removed) URL.revokeObjectURL(removed.preview);
+    onChange(pendingPhotos.filter(p => p.id !== id));
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <Label className="text-sm font-medium text-slate-700">
+          Fotos de la muestra
+          <span className="text-slate-400 font-normal ml-1">(opcional · máx. 5)</span>
+        </Label>
+        {pendingPhotos.length > 0 && (
+          <span className="text-xs text-purple-600 font-medium">
+            {pendingPhotos.length} foto{pendingPhotos.length !== 1 ? "s" : ""} lista{pendingPhotos.length !== 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+
+      {pendingPhotos.length > 0 && (
+        <div className="grid grid-cols-4 gap-2">
+          {pendingPhotos.map(p => (
+            <div key={p.id} className="relative group aspect-square">
+              <img src={p.preview} alt="preview" className="w-full h-full object-cover rounded-lg border border-slate-200" />
+              <button
+                type="button"
+                className="absolute top-0.5 right-0.5 bg-white/90 rounded-full p-0.5 shadow opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
+                onClick={() => remove(p.id)}
+              >
+                <X className="w-3 h-3 text-slate-500 hover:text-red-600" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {pendingPhotos.length < 5 && (
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-11 gap-2 border-dashed border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-400 flex-col py-2"
+            onClick={() => cameraRef.current?.click()}
+          >
+            <Camera className="w-4 h-4" />
+            <span className="text-xs">Tomar foto</span>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-11 gap-2 border-dashed border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-400 flex-col py-2"
+            onClick={() => galleryRef.current?.click()}
+          >
+            <ImageIcon className="w-4 h-4" />
+            <span className="text-xs">Galería</span>
+          </Button>
+        </div>
+      )}
+
+      <input
+        ref={cameraRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={e => { addFiles(e.target.files); e.target.value = ""; }}
+      />
+      <input
+        ref={galleryRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={e => { addFiles(e.target.files); e.target.value = ""; }}
+      />
+    </div>
+  );
+}
+
 function SampleForm({
   initial, onSubmit, onCancel, pending, isEdit,
+  pendingPhotos, onPhotosChange,
 }: {
   initial: ReturnType<typeof emptyForm>;
   onSubmit: (d: ReturnType<typeof emptyForm>) => void;
   onCancel: () => void;
   pending: boolean;
   isEdit: boolean;
+  pendingPhotos?: PendingPhoto[];
+  onPhotosChange?: (photos: PendingPhoto[]) => void;
 }) {
   const [f, setF] = useState(initial);
   const s = (k: keyof typeof f, v: string) => setF(p => ({ ...p, [k]: v }));
@@ -120,8 +236,16 @@ function SampleForm({
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label>Destino / Laboratorio</Label>
-          <Input placeholder="Lab. Certificado INDECOPI" value={f.destination} onChange={e => s("destination", e.target.value)} />
+          <Label>Destino</Label>
+          <Select value={f.destination || "__none__"} onValueChange={v => s("destination", v === "__none__" ? "" : v)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar destino" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">— Sin destino —</SelectItem>
+              {DESTINATIONS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-1.5">
           <Label>Referencia Lab.</Label>
@@ -152,13 +276,19 @@ function SampleForm({
         <Input placeholder="Observaciones" value={f.notes} onChange={e => s("notes", e.target.value)} />
       </div>
 
+      {!isEdit && pendingPhotos !== undefined && onPhotosChange && (
+        <div className="border-t border-slate-100 pt-4">
+          <PhotoPickerInline pendingPhotos={pendingPhotos} onChange={onPhotosChange} />
+        </div>
+      )}
+
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
         <Button type="submit"
           disabled={pending || !f.productName || !f.sampleCode || !f.quantity || !f.purpose}
           className="bg-purple-600 hover:bg-purple-700">
           {pending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-          {isEdit ? "Guardar Cambios" : "Registrar Muestra"}
+          {isEdit ? "Guardar Cambios" : pendingPhotos && pendingPhotos.length > 0 ? `Registrar y subir ${pendingPhotos.length} foto${pendingPhotos.length !== 1 ? "s" : ""}` : "Registrar Muestra"}
         </Button>
       </DialogFooter>
     </form>
@@ -179,6 +309,8 @@ export default function MuestrasPage() {
   const [photoTarget, setPhotoTarget] = useState<Sample | null>(null);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
 
   const { data: samples = [], isLoading, isError } = useQuery<Sample[]>({
     queryKey: ["/api/samples"], queryFn: () => api("/api/samples?limit=500").then((r: any) => r.data ?? r),
@@ -194,14 +326,52 @@ export default function MuestrasPage() {
     });
   }, [samples, search, filterStatus]);
 
+  const uploadPhotos = async (sampleId: string, files: PendingPhoto[]) => {
+    if (files.length === 0) return;
+    setUploadingPhotos(true);
+    try {
+      const formData = new FormData();
+      files.forEach(p => formData.append("photos", p.file));
+      const res = await fetch(`/api/samples/${sampleId}/photos`, {
+        method: "POST",
+        headers: getAuthHeaders() as Record<string, string>,
+        body: formData,
+      });
+      const body = await res.json();
+      const uploaded = body.uploaded ?? 0;
+      const errCount = (body.errors ?? []).length;
+      if (errCount > 0) {
+        toast({ title: `${uploaded} foto(s) subida(s), ${errCount} con error`, variant: "destructive" });
+      } else {
+        toast({ title: `Muestra registrada con ${uploaded} foto${uploaded !== 1 ? "s" : ""} guardada${uploaded !== 1 ? "s" : ""} en Drive` });
+      }
+      files.forEach(p => URL.revokeObjectURL(p.preview));
+      qc.invalidateQueries({ queryKey: ["/api/samples"] });
+    } catch {
+      toast({ title: "Muestra guardada, pero hubo un error al subir las fotos", variant: "destructive" });
+    } finally {
+      setUploadingPhotos(false);
+    }
+  };
+
   const createMutation = useMutation({
-    mutationFn: (data: ReturnType<typeof emptyForm>) => api("/api/samples", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
-    }),
+    mutationFn: async ({ data, photos }: { data: ReturnType<typeof emptyForm>; photos: PendingPhoto[] }) => {
+      const record = await api("/api/samples", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
+      });
+      if (photos.length > 0) {
+        await uploadPhotos(record.id ?? record.sample?.id ?? record.data?.id, photos);
+      } else {
+        toast({ title: "Muestra registrada", description: "La muestra fue guardada exitosamente." });
+        qc.invalidateQueries({ queryKey: ["/api/samples"] });
+        qc.invalidateQueries({ queryKey: ["/api/reports/summary"] });
+      }
+      return record;
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/samples"] });
       qc.invalidateQueries({ queryKey: ["/api/reports/summary"] });
-      toast({ title: "Muestra registrada", description: "La muestra fue guardada exitosamente." });
+      setPendingPhotos([]);
       setShowForm(false);
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -230,6 +400,8 @@ export default function MuestrasPage() {
     onError: (e: Error) => { toast({ title: "Error", description: e.message, variant: "destructive" }); setDeleteTarget(null); },
   });
 
+  const isSaving = createMutation.isPending || uploadingPhotos;
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -244,7 +416,7 @@ export default function MuestrasPage() {
             </div>
           </div>
           {canWrite && (
-            <Button onClick={() => setShowForm(true)} className="gap-2 bg-purple-600 hover:bg-purple-700">
+            <Button onClick={() => { setPendingPhotos([]); setShowForm(true); }} className="gap-2 bg-purple-600 hover:bg-purple-700">
               <Plus className="w-4 h-4" /> Nueva Muestra
             </Button>
           )}
@@ -289,7 +461,7 @@ export default function MuestrasPage() {
               <TestTube className="w-10 h-10" />
               <p className="text-sm font-medium">No hay muestras registradas</p>
               {canWrite && !search && (
-                <Button variant="outline" size="sm" onClick={() => setShowForm(true)} className="gap-2 mt-1">
+                <Button variant="outline" size="sm" onClick={() => { setPendingPhotos([]); setShowForm(true); }} className="gap-2 mt-1">
                   <Plus className="w-4 h-4" /> Registrar primera muestra
                 </Button>
               )}
@@ -305,6 +477,7 @@ export default function MuestrasPage() {
                     <TableHead className="font-semibold text-slate-600 text-right w-24">Cantidad</TableHead>
                     <TableHead className="font-semibold text-slate-600 w-28">Fecha</TableHead>
                     <TableHead className="font-semibold text-slate-600">Propósito</TableHead>
+                    <TableHead className="font-semibold text-slate-600 w-28">Destino</TableHead>
                     <TableHead className="font-semibold text-slate-600 w-36">Estado</TableHead>
                     <TableHead className="w-28"></TableHead>
                   </TableRow>
@@ -327,6 +500,13 @@ export default function MuestrasPage() {
                         <TableCell className="text-sm text-slate-600">{s.sampleDate}</TableCell>
                         <TableCell className="text-sm text-slate-600">{s.purpose}</TableCell>
                         <TableCell>
+                          {s.destination ? (
+                            <Badge className="text-[10px] bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-50">
+                              {s.destination}
+                            </Badge>
+                          ) : <span className="text-slate-300 text-xs">—</span>}
+                        </TableCell>
+                        <TableCell>
                           <div>
                             <Badge className={`${cfg.className} hover:${cfg.className} text-xs`}>{cfg.label}</Badge>
                             {s.result && <p className="text-xs text-slate-400 mt-1">{s.result}</p>}
@@ -334,7 +514,7 @@ export default function MuestrasPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 hover:text-purple-600 hover:bg-purple-50"
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 hover:text-purple-600 hover:bg-purple-50 relative"
                               onClick={() => setPhotoTarget(s)} title="Ver / agregar fotos">
                               <Camera className="w-3.5 h-3.5" />
                               {s.photos && s.photos.length > 0 && (
@@ -366,7 +546,8 @@ export default function MuestrasPage() {
           )}
         </div>
 
-        <Dialog open={showForm} onOpenChange={setShowForm}>
+        {/* ── Nueva Muestra (con foto integrada) ──────────────────────── */}
+        <Dialog open={showForm} onOpenChange={o => { if (!o && !isSaving) { setPendingPhotos([]); setShowForm(false); } }}>
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -375,14 +556,17 @@ export default function MuestrasPage() {
             </DialogHeader>
             <SampleForm
               initial={emptyForm()}
-              onSubmit={d => createMutation.mutate(d)}
-              onCancel={() => setShowForm(false)}
-              pending={createMutation.isPending}
+              onSubmit={d => createMutation.mutate({ data: d, photos: pendingPhotos })}
+              onCancel={() => { if (!isSaving) { setPendingPhotos([]); setShowForm(false); } }}
+              pending={isSaving}
               isEdit={false}
+              pendingPhotos={pendingPhotos}
+              onPhotosChange={setPendingPhotos}
             />
           </DialogContent>
         </Dialog>
 
+        {/* ── Editar muestra ──────────────────────────────────────────── */}
         <Dialog open={!!editSample} onOpenChange={o => { if (!o) setEditSample(null); }}>
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -408,6 +592,7 @@ export default function MuestrasPage() {
           </DialogContent>
         </Dialog>
 
+        {/* ── Eliminar ────────────────────────────────────────────────── */}
         <AlertDialog open={!!deleteTarget} onOpenChange={o => { if (!o) setDeleteTarget(null); }}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -426,6 +611,7 @@ export default function MuestrasPage() {
           </AlertDialogContent>
         </AlertDialog>
 
+        {/* ── Panel de fotos (para muestras ya existentes) ────────────── */}
         <Dialog open={!!photoTarget} onOpenChange={o => { if (!o) setPhotoTarget(null); }}>
           <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
