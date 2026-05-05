@@ -12,16 +12,10 @@ if (!jwtSecret) {
 }
 const JWT_SECRET = jwtSecret;
 
-// ---------------------------------------------------------------------------
-// Duración del token reducida de 30d → 8h.
-// ---------------------------------------------------------------------------
 const JWT_EXPIRES_IN = "8h";
 const JWT_EXPIRES_SECONDS = 8 * 60 * 60;
+const COOKIE_NAME = "auth_token";
 
-// ---------------------------------------------------------------------------
-// Blacklist cleanup: removes expired revoked tokens from the DB.
-// Runs at startup and every hour so the table stays lean.
-// ---------------------------------------------------------------------------
 export async function cleanupExpiredTokens(): Promise<void> {
   try {
     await db.delete(revokedTokensTable).where(lt(revokedTokensTable.expiresAt, new Date()));
@@ -30,7 +24,6 @@ export async function cleanupExpiredTokens(): Promise<void> {
   }
 }
 
-// Schedule periodic cleanup every hour (non-blocking).
 setInterval(() => void cleanupExpiredTokens(), 60 * 60 * 1000).unref();
 
 export function hashPassword(password: string): Promise<string> {
@@ -56,9 +49,6 @@ export function verifyToken(token: string): TokenPayload | null {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Revoke a token by its JTI — call this on logout or forced session expiry.
-// ---------------------------------------------------------------------------
 export async function revokeToken(jti: string, expiresAt: Date): Promise<void> {
   try {
     await db.insert(revokedTokensTable).values({ jti, expiresAt }).onConflictDoNothing();
@@ -75,29 +65,49 @@ export type AuthenticatedRequest = Request & {
   tokenExp: number;
 };
 
-// ---------------------------------------------------------------------------
-// requireAuth
-// 1. Verifies JWT signature and expiration.
-// 2. Checks the JTI blacklist (revoked by logout or admin).
-// 3. Confirms the account is still active and reads the live role from DB.
-// Both DB lookups are parallelized to minimize latency overhead.
-// ---------------------------------------------------------------------------
+// ── Cookie helpers ───────────────────────────────────────────────────────────
+
+export function setAuthCookie(res: Response, token: string): void {
+  const isProduction = process.env.NODE_ENV === "production";
+  res.cookie(COOKIE_NAME, token, {
+    httpOnly: true,
+    sameSite: "strict",
+    secure: isProduction,
+    maxAge: JWT_EXPIRES_SECONDS * 1000,
+    path: "/",
+  });
+}
+
+export function clearAuthCookie(res: Response): void {
+  res.clearCookie(COOKIE_NAME, { path: "/" });
+}
+
+export function getTokenFromRequest(req: Request): string | null {
+  // Prefer explicit Authorization header (mobile / programmatic clients).
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith("Bearer ")) {
+    return authHeader.substring(7);
+  }
+  // Fallback to HttpOnly cookie (browser XSS protection).
+  return req.cookies?.[COOKIE_NAME] ?? null;
+}
+
+// ── Middleware ────────────────────────────────────────────────────────────────
+
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    const token = getTokenFromRequest(req);
+    if (!token) {
       res.status(401).json({ error: "No autorizado" });
       return;
     }
 
-    const token = authHeader.substring(7);
     const payload = verifyToken(token);
     if (!payload) {
       res.status(401).json({ error: "Token inválido o expirado" });
       return;
     }
 
-    // Parallel: user status check + JTI blacklist check
     const [userRows, revokedRows] = await Promise.all([
       db
         .select({ status: usersTable.status, role: usersTable.role })

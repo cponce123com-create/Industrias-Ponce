@@ -4,14 +4,18 @@ services:
     runtime: node
     region: oregon
     plan: free
+    healthCheckPath: /api/healthz
+    previousRetainDeploymentCount: 2
+    rollback:
+      enabled: true
 
     # -----------------------------------------------------------------------
     # Build Command
     # -----------------------------------------------------------------------
     buildCommand: >
       pnpm install --no-frozen-lockfile &&
-      BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/legado build &&
       pnpm --filter @workspace/api-server build &&
+      pnpm --filter @workspace/legado build &&
       pnpm --filter @workspace/db migrate
 
     startCommand: node artifacts/api-server/dist/index.cjs

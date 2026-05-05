@@ -1,6 +1,5 @@
 import { Router } from "express";
 import multer from "multer";
-import * as XLSX from "xlsx";
 import { db } from "@workspace/db";
 import { productsTable, inventoryRecordsTable, inventoryBoxesTable, immobilizedProductsTable, samplesTable, dyeLotsTable, finalDispositionTable, cuadreRecordsTable, cuadreItemsTable } from "@workspace/db";
 import { eq, count, and, sql } from "drizzle-orm";
@@ -11,6 +10,7 @@ import { asyncHandler } from "../lib/async-handler.js";
 import { writeAuditLog } from "../lib/audit.js";
 import { destructiveActionLimiter } from "../lib/rate-limit.js";
 import { parsePagination } from "../lib/pagination.js";
+import { ApiError } from "../lib/error.js";
 
 
 const router = Router();
@@ -96,7 +96,8 @@ function rowToProduct(row: Record<string, unknown>, defaultWarehouse = "General"
   };
 }
 
-router.get("/template", requireAuth, (_req, res) => {
+router.get("/template", requireAuth, asyncHandler(async (_req, res) => {
+  const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
   const exampleRow = {
     almacen: "QA", tipo: "Reactivo", codigo: "PROD-001", descripcion: "Ácido Sulfúrico 98%",
@@ -114,6 +115,7 @@ router.get("/template", requireAuth, (_req, res) => {
 });
 
 router.get("/export", requireAuth, asyncHandler(async (req, res) => {
+  const XLSX = await import("xlsx");
   const warehouse = req.query.warehouse as string | undefined;
   let query = db.select().from(productsTable).$dynamic();
   if (warehouse && warehouse !== "all") {
@@ -165,6 +167,7 @@ router.post(
   requireAuth,
   requireRole("supervisor", "admin", "operator"),
   upload.single("file"), asyncHandler(async (req, res) => {
+    const XLSX = await import("xlsx");
     if (!req.file) { res.status(400).json({ error: "No se recibió ningún archivo" }); return; }
     const defaultWarehouse = (req.query.warehouse as string) || "General";
     let workbook: XLSX.WorkBook;
@@ -261,14 +264,14 @@ router.get("/", requireAuth, asyncHandler(async (req, res) => {
 router.get("/:id", requireAuth, asyncHandler(async (req, res) => {
   const { id } = req.params;
   const products = await db.select().from(productsTable).where(eq(productsTable.id, id as string)).limit(1);
-  if (products.length === 0) { res.status(404).json({ error: "Producto no encontrado" }); return; }
+  if (products.length === 0) { throw new ApiError(404, "Producto no encontrado", "PRODUCT_NOT_FOUND"); }
   res.json(products[0]);
 }));
 
 router.post("/", requireAuth, requireRole("supervisor", "admin", "operator"), asyncHandler(async (req, res) => {
   const authedReq = req as AuthenticatedRequest;
   const parsed = productSchema.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Datos inválidos" }); return; }
+  if (!parsed.success) { throw new ApiError(400, parsed.error.issues[0]?.message ?? "Datos inválidos", "VALIDATION_ERROR"); }
   const id = generateId();
   const [created] = await db.insert(productsTable).values({ id, ...parsed.data }).returning();
   void writeAuditLog({ userId: authedReq.userId, action: "create", resource: "product", resourceId: created!.id, ipAddress: req.ip });
@@ -279,11 +282,11 @@ router.patch("/:id", requireAuth, requireRole("supervisor", "admin", "operator")
   const authedReq = req as AuthenticatedRequest;
   const { id } = req.params;
   const parsed = productSchema.partial().safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Datos inválidos" }); return; }
+  if (!parsed.success) { throw new ApiError(400, parsed.error.issues[0]?.message ?? "Datos inválidos", "VALIDATION_ERROR"); }
   const [updated] = await db.update(productsTable)
     .set({ ...parsed.data, updatedAt: new Date() })
     .where(eq(productsTable.id, id as string)).returning();
-  if (!updated) { res.status(404).json({ error: "Producto no encontrado" }); return; }
+  if (!updated) { throw new ApiError(404, "Producto no encontrado", "PRODUCT_NOT_FOUND"); }
   void writeAuditLog({ userId: authedReq.userId, action: "update", resource: "product", resourceId: id, ipAddress: req.ip });
   res.json(updated);
 }));

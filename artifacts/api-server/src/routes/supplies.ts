@@ -1,6 +1,5 @@
 import { Router } from "express";
 import multer from "multer";
-import * as XLSX from "xlsx";
 import { db } from "@workspace/db";
 import { suppliesTable } from "@workspace/db";
 import { eq, asc } from "drizzle-orm";
@@ -76,6 +75,7 @@ router.delete("/:id", requireAuth, requireRole("supervisor", "admin"), asyncHand
 
 // GET /api/supplies/template — download Excel template
 router.get("/template", requireAuth, asyncHandler(async (_req, res) => {
+  const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([TEMPLATE_HEADERS]);
   ws["!cols"] = [{ wch: 14 }, { wch: 40 }, { wch: 12 }];
@@ -88,6 +88,7 @@ router.get("/template", requireAuth, asyncHandler(async (_req, res) => {
 
 // POST /api/supplies/import — upsert from Excel
 router.post("/import", requireAuth, requireRole("supervisor", "admin"), upload.single("file"), asyncHandler(async (req, res) => {
+  const XLSX = await import("xlsx");
   if (!req.file) { res.status(400).json({ error: "No se envió ningún archivo" }); return; }
   const wb = XLSX.read(req.file.buffer, { type: "buffer" });
   const ws = wb.Sheets[wb.SheetNames[0]];

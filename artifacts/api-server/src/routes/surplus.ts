@@ -96,7 +96,7 @@ router.delete("/:id", requireAuth, requireRole("supervisor", "admin"), asyncHand
 }));
 
 // ── Photos ────────────────────────────────────────────────────────────────────
-router.post("/:id/photos", requireAuth, upload.array("photos", 5), asyncHandler(async (req, res) => {
+router.post("/:id/photos", requireAuth, requireRole("supervisor", "admin", "quality", "operator"), upload.array("photos", 5), asyncHandler(async (req, res) => {
   const authedReq = req as AuthenticatedRequest;
   const { id } = req.params;
   const [record] = await db.select().from(surplusProductsTable).where(eq(surplusProductsTable.id, id as string)).limit(1);
@@ -116,7 +116,9 @@ router.post("/:id/photos", requireAuth, upload.array("photos", 5), asyncHandler(
   const errors: string[] = [];
   for (let i = 0; i < toUpload.length; i++) {
     const f = toUpload[i]!;
-    const ext = path.extname(f.originalname || ".jpg") || ".jpg";
+    // Sanitize original filename to strip path traversal and unsafe characters
+    const safeName = (f.originalname || "photo").replace(/[^a-zA-Z0-9._-]/g, "_");
+    const ext = path.extname(safeName) || ".jpg";
     const fname = buildPhotoName(record.surplusCode, existing.length + uploaded.length + 1, ext);
     try {
       const url = await uploadFileToDrive(f.buffer, fname, f.mimetype);

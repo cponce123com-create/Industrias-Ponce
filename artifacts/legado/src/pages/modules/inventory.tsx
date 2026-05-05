@@ -527,7 +527,7 @@ export default function TomaDeInventarioPage() {
                               type="button"
                               onClick={() => setViewPhoto(boxPreviews[i]!)}
                               className="w-9 h-9 rounded-lg overflow-hidden border border-slate-200">
-                              <img src={boxPreviews[i]!} alt="preview" className="w-full h-full object-cover" />
+                              <img src={boxPreviews[i]!} alt="preview" className="w-full h-full object-cover" loading="lazy" decoding="async" />
                             </button>
                             <button
                               type="button"

@@ -1,6 +1,5 @@
 import { Router } from "express";
 import multer from "multer";
-import * as XLSX from "xlsx";
 import { db } from "@workspace/db";
 import { eppMasterTable, eppDeliveriesTable, eppChecklistsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
@@ -85,7 +84,8 @@ router.delete("/:id", requireAuth, requireRole("supervisor", "admin"), asyncHand
 
 // ── Excel template download ───────────────────────────────────────────────────
 
-router.get("/template", requireAuth, (_req, res) => {
+router.get("/template", requireAuth, asyncHandler(async (_req, res) => {
+  const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
   const exampleRow = {
     codigo: "EPP-001",
@@ -112,6 +112,7 @@ router.post(
   requireRole("supervisor", "admin"),
   upload.single("file"),
   asyncHandler(async (req, res) => {
+    const XLSX = await import("xlsx");
     if (!req.file) { res.status(400).json({ error: "No se recibió ningún archivo" }); return; }
     let workbook: XLSX.WorkBook;
     try { workbook = XLSX.read(req.file.buffer, { type: "buffer" }); }
@@ -141,6 +142,7 @@ router.post(
     let inserted = 0, updated = 0;
     const errors: Array<{ row: number; code: string; error: string }> = [];
 
+    const newRows: Array<{ id: string; code: string; name: string; category: string; description?: string; replacementPeriodDays?: number; status: "active" | "inactive" }> = [];
     for (let i = 0; i < normalizedRows.length; i++) {
       const row = normalizedRows[i];
       const rowNum = i + 2;
@@ -165,8 +167,8 @@ router.post(
           updated++;
         } else {
           const id = generateId();
-          await db.insert(eppMasterTable).values({ id, ...data });
           existingMap.set(code.toUpperCase(), id);
+          newRows.push({ id, ...data });
           inserted++;
         }
       } catch (err) {
@@ -175,6 +177,13 @@ router.post(
         errors.push({ row: rowNum, code, error: msg });
       }
     }
+
+    // Batch insert new rows in batches of 50
+    for (let i = 0; i < newRows.length; i += 50) {
+      const batch = newRows.slice(i, i + 50);
+      await db.insert(eppMasterTable).values(batch).onConflictDoNothing();
+    }
+
     res.json({ inserted, updated, errors, total: normalizedRows.length });
   })
 );

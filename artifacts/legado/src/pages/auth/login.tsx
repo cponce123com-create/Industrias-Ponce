@@ -34,13 +34,7 @@ export default function Login() {
     }
   }
 
-  const demoCredentials = [
-    { label: "Administrador", email: "admin@almacen.com", color: "#0d9488" },
-    { label: "Supervisor", email: "supervisor@almacen.com", color: "#0891b2" },
-    { label: "Operario", email: "operario@almacen.com", color: "#0369a1" },
-  ];
-
-  return (
+  }
     <div
       className="min-h-screen flex"
       style={{
@@ -164,12 +158,10 @@ export default function Login() {
               </Button>
             </form>
 
-            {/* Password hint */}
+            {/* Contact hint */}
             <div className="mt-5 pt-4" style={{ borderTop: "1px solid #e2e8f0" }}>
               <p className="text-xs text-center" style={{ color: "#94a3b8" }}>
-                Tu contraseña es tu usuario + <span className="font-mono font-semibold" style={{ color: "#0d9488" }}>123</span>
-                <br />
-                <span style={{ color: "#cbd5e1" }}>Ej: jcastillo → contraseña: <span className="font-mono font-semibold" style={{ color: "#64748b" }}>jcastillo123</span></span>
+                ¿No tienes credenciales? Solicita acceso al administrator del sistema.
               </p>
             </div>
           </div>

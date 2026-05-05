@@ -55,7 +55,27 @@ const sampleSchema = z.object({
 router.get("/", requireAuth, asyncHandler(async (req, res) => {
   const { page, limit, offset } = parsePagination(req.query as Record<string, unknown>);
   const [{ total }] = await db.select({ total: count() }).from(samplesTable);
-  const records = await db.select().from(samplesTable)
+  const records = await db.select({
+      id: samplesTable.id,
+      productId: samplesTable.productId,
+      productName: samplesTable.productName,
+      supplier: samplesTable.supplier,
+      sampleCode: samplesTable.sampleCode,
+      quantity: samplesTable.quantity,
+      unit: samplesTable.unit,
+      sampleDate: samplesTable.sampleDate,
+      purpose: samplesTable.purpose,
+      destination: samplesTable.destination,
+      labReference: samplesTable.labReference,
+      status: samplesTable.status,
+      result: samplesTable.result,
+      photos: samplesTable.photos,
+      notes: samplesTable.notes,
+      takenBy: samplesTable.takenBy,
+      reviewedBy: samplesTable.reviewedBy,
+      createdAt: samplesTable.createdAt,
+      updatedAt: samplesTable.updatedAt,
+    }).from(samplesTable)
     .orderBy(desc(samplesTable.sampleDate))
     .limit(limit)
     .offset(offset);
@@ -64,7 +84,27 @@ router.get("/", requireAuth, asyncHandler(async (req, res) => {
 
 router.get("/:id", requireAuth, asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const records = await db.select().from(samplesTable).where(eq(samplesTable.id, id as string)).limit(1);
+  const records = await db.select({
+      id: samplesTable.id,
+      productId: samplesTable.productId,
+      productName: samplesTable.productName,
+      supplier: samplesTable.supplier,
+      sampleCode: samplesTable.sampleCode,
+      quantity: samplesTable.quantity,
+      unit: samplesTable.unit,
+      sampleDate: samplesTable.sampleDate,
+      purpose: samplesTable.purpose,
+      destination: samplesTable.destination,
+      labReference: samplesTable.labReference,
+      status: samplesTable.status,
+      result: samplesTable.result,
+      photos: samplesTable.photos,
+      notes: samplesTable.notes,
+      takenBy: samplesTable.takenBy,
+      reviewedBy: samplesTable.reviewedBy,
+      createdAt: samplesTable.createdAt,
+      updatedAt: samplesTable.updatedAt,
+    }).from(samplesTable).where(eq(samplesTable.id, id as string)).limit(1);
   if (records.length === 0) { res.status(404).json({ error: "Muestra no encontrada" }); return; }
   res.json(records[0]);
 }));
@@ -130,7 +170,27 @@ router.post(
       res.status(400).json({ error: "No se enviaron archivos" }); return;
     }
 
-    const [record] = await db.select().from(samplesTable).where(eq(samplesTable.id, id as string)).limit(1);
+    const [record] = await db.select({
+      id: samplesTable.id,
+      productId: samplesTable.productId,
+      productName: samplesTable.productName,
+      supplier: samplesTable.supplier,
+      sampleCode: samplesTable.sampleCode,
+      quantity: samplesTable.quantity,
+      unit: samplesTable.unit,
+      sampleDate: samplesTable.sampleDate,
+      purpose: samplesTable.purpose,
+      destination: samplesTable.destination,
+      labReference: samplesTable.labReference,
+      status: samplesTable.status,
+      result: samplesTable.result,
+      photos: samplesTable.photos,
+      notes: samplesTable.notes,
+      takenBy: samplesTable.takenBy,
+      reviewedBy: samplesTable.reviewedBy,
+      createdAt: samplesTable.createdAt,
+      updatedAt: samplesTable.updatedAt,
+    }).from(samplesTable).where(eq(samplesTable.id, id as string)).limit(1);
     if (!record) { res.status(404).json({ error: "Muestra no encontrada" }); return; }
 
     const existing = (record.photos as string[] | null) ?? [];
@@ -184,7 +244,27 @@ router.delete(
     const { id, photoIndex } = req.params;
     const idx = parseInt(photoIndex as string, 10);
 
-    const [record] = await db.select().from(samplesTable).where(eq(samplesTable.id, id as string)).limit(1);
+    const [record] = await db.select({
+      id: samplesTable.id,
+      productId: samplesTable.productId,
+      productName: samplesTable.productName,
+      supplier: samplesTable.supplier,
+      sampleCode: samplesTable.sampleCode,
+      quantity: samplesTable.quantity,
+      unit: samplesTable.unit,
+      sampleDate: samplesTable.sampleDate,
+      purpose: samplesTable.purpose,
+      destination: samplesTable.destination,
+      labReference: samplesTable.labReference,
+      status: samplesTable.status,
+      result: samplesTable.result,
+      photos: samplesTable.photos,
+      notes: samplesTable.notes,
+      takenBy: samplesTable.takenBy,
+      reviewedBy: samplesTable.reviewedBy,
+      createdAt: samplesTable.createdAt,
+      updatedAt: samplesTable.updatedAt,
+    }).from(samplesTable).where(eq(samplesTable.id, id as string)).limit(1);
     if (!record) { res.status(404).json({ error: "Muestra no encontrada" }); return; }
 
     const photos = [...((record.photos as string[] | null) ?? [])];

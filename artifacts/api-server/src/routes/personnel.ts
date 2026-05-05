@@ -26,7 +26,20 @@ const personnelSchema = z.object({
 router.get("/", requireAuth, asyncHandler(async (req, res) => {
   const { page, limit, offset } = parsePagination(req.query as Record<string, unknown>);
   const [{ total }] = await db.select({ total: count() }).from(personnelTable);
-  const records = await db.select().from(personnelTable)
+  const records = await db.select({
+      id: personnelTable.id,
+      employeeId: personnelTable.employeeId,
+      name: personnelTable.name,
+      position: personnelTable.position,
+      department: personnelTable.department,
+      email: personnelTable.email,
+      phone: personnelTable.phone,
+      hireDate: personnelTable.hireDate,
+      status: personnelTable.status,
+      notes: personnelTable.notes,
+      createdAt: personnelTable.createdAt,
+      updatedAt: personnelTable.updatedAt,
+    }).from(personnelTable)
     .orderBy(personnelTable.name)
     .limit(limit)
     .offset(offset);
@@ -35,7 +48,20 @@ router.get("/", requireAuth, asyncHandler(async (req, res) => {
 
 router.get("/:id", requireAuth, asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const records = await db.select().from(personnelTable).where(eq(personnelTable.id, id as string)).limit(1);
+  const records = await db.select({
+      id: personnelTable.id,
+      employeeId: personnelTable.employeeId,
+      name: personnelTable.name,
+      position: personnelTable.position,
+      department: personnelTable.department,
+      email: personnelTable.email,
+      phone: personnelTable.phone,
+      hireDate: personnelTable.hireDate,
+      status: personnelTable.status,
+      notes: personnelTable.notes,
+      createdAt: personnelTable.createdAt,
+      updatedAt: personnelTable.updatedAt,
+    }).from(personnelTable).where(eq(personnelTable.id, id as string)).limit(1);
   if (records.length === 0) {
     res.status(404).json({ error: "Personal no encontrado" });
     return;

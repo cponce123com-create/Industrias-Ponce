@@ -101,7 +101,7 @@ function PhotoPickerInline({
         <div className="grid grid-cols-4 gap-2">
           {pendingPhotos.map(p => (
             <div key={p.id} className="relative group aspect-square">
-              <img src={p.preview} alt="preview" className="w-full h-full object-cover rounded-lg border border-slate-200" />
+              <img src={p.preview} alt="preview" className="w-full h-full object-cover rounded-lg border border-slate-200" loading="lazy" decoding="async" />
               <button
                 type="button"
                 className="absolute top-0.5 right-0.5 bg-white/90 rounded-full p-0.5 shadow opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"

@@ -72,10 +72,11 @@ export async function uploadFileToDrive(
 
   const fileId = res.data.id!;
 
+  const domain = process.env.GOOGLE_DRIVE_DOMAIN ?? "sanjacinto.com.pe";
   await drive.permissions.create({
     fileId,
     supportsAllDrives: true,
-    requestBody: { role: "reader", type: "anyone" },
+    requestBody: { role: "reader", type: "domain", domain },
   });
 
   return {

@@ -163,7 +163,7 @@ export function PhotoViewer({ url, onClose }: { url: string; onClose: () => void
           className="absolute -top-3 -right-3 bg-white rounded-full p-1 shadow-lg text-slate-700 hover:text-red-600">
           <X className="w-5 h-5" />
         </button>
-        <img src={url} alt="Foto de etiqueta" className="w-full rounded-xl shadow-2xl object-contain max-h-[80vh]" />
+        <img src={url} alt="Foto de etiqueta" className="w-full rounded-xl shadow-2xl object-contain max-h-[80vh]" loading="lazy" decoding="async" />
       </div>
     </div>
   );
@@ -295,7 +295,7 @@ export function BoxesDialog({ record, productName, unit, onClose, onViewPhoto }:
                 {box.photoUrl ? (
                   <button onClick={() => onViewPhoto(box.photoUrl!)}
                     className="shrink-0 w-12 h-12 rounded-lg overflow-hidden border border-slate-200 hover:opacity-80 transition-opacity">
-                    <img src={box.photoUrl} alt="Foto caja" className="w-full h-full object-cover" />
+                    <img src={box.photoUrl} alt="Foto caja" className="w-full h-full object-cover" loading="lazy" decoding="async" />
                   </button>
                 ) : (
                   <div className="shrink-0 w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center">

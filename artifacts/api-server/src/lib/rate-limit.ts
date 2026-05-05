@@ -49,3 +49,18 @@ export const generalApiLimiter = rateLimit({
   message: { error: "Demasiadas solicitudes. Intenta más tarde." },
   skip: () => process.env.NODE_ENV === "test",
 });
+
+/** 100 requests per 15 minutes per authenticated user (falls back to IP) */
+export const userLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 100,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Demasiadas solicitudes. Intenta más tarde." },
+  keyGenerator: (req) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const userId = (req as any).auth?.userId;
+    return userId ? `user:${userId}` : req.ip;
+  },
+  skip: () => process.env.NODE_ENV === "test",
+});

@@ -1,6 +1,5 @@
 import { Router } from "express";
 import multer from "multer";
-import * as XLSX from "xlsx";
 import { db } from "@workspace/db";
 import { balanceRecordsTable } from "@workspace/db";
 import { eq, desc, and, sql } from "drizzle-orm";
@@ -66,6 +65,7 @@ function parseImportDate(val: unknown): string {
 }
 
 router.get("/template", requireAuth, asyncHandler(async (req, res) => {
+  const XLSX = await import("xlsx");
   const warehouse = req.query.warehouse as string | undefined;
 
   // Fetch latest SA per warehouse+code (including stored ultimo_consumo)
@@ -112,6 +112,7 @@ router.post(
   requireRole("supervisor", "admin", "operator"),
   upload.single("file"),
   asyncHandler(async (req: AuthenticatedRequest, res) => {
+    const XLSX = await import("xlsx");
     if (!req.file) { res.status(400).json({ error: "No se recibió ningún archivo" }); return; }
     let workbook: XLSX.WorkBook;
     try { workbook = XLSX.read(req.file.buffer, { type: "buffer", cellDates: true }); }

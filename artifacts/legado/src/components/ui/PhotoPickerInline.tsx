@@ -63,6 +63,8 @@ export function PhotoPickerInline({ pendingPhotos, onChange, maxPhotos = 5, labe
               <img
                 src={p.preview}
                 alt="preview"
+                loading="lazy"
+                decoding="async"
                 style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "8px", border: "1px solid #e2e8f0" }}
               />
               <button

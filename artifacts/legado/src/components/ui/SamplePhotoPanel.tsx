@@ -42,6 +42,8 @@ function DriveThumb({ url }: { url: string }) {
           src={thumb}
           alt="Foto Drive"
           className="w-full h-full object-cover"
+          loading="lazy"
+          decoding="async"
           onError={() => setErr(true)}
         />
       ) : (
@@ -242,7 +244,7 @@ export function SamplePhotoPanel({
             {uploading.map(p => (
               <div key={p.id} className="relative group">
                 <div className="aspect-square rounded-lg overflow-hidden border-2 border-dashed border-slate-200 relative">
-                  <img src={p.preview} alt="preview" className="w-full h-full object-cover" />
+                  <img src={p.preview} alt="preview" className="w-full h-full object-cover" loading="lazy" decoding="async" />
                   {p.status === "uploading" && (
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                       <Loader2 className="w-5 h-5 text-white animate-spin" />

@@ -89,7 +89,7 @@ async function uploadBoxPhotos(files: Files, productLabel: string, date: string)
 router.get("/stats", requireAuth, asyncHandler(async (req, res) => {
   const warehouse = req.query.warehouse as string | undefined;
 
-  const allProducts = await db.select({ id: productsTable.id })
+  const [{ totalProducts }] = await db.select({ totalProducts: count() })
     .from(productsTable)
     .where(
       warehouse && warehouse !== "all"
@@ -97,12 +97,19 @@ router.get("/stats", requireAuth, asyncHandler(async (req, res) => {
         : eq(productsTable.status, "active")
     );
 
-  const totalProducts = allProducts.length;
-
   if (totalProducts === 0) {
     res.json({ totalProducts: 0, withoutRecords: 0, exact: 0, withDifference: 0, surplus: 0, shortage: 0 });
     return;
   }
+
+  // Fetch all active products for the stats computation loop
+  const allProducts = await db.select({ id: productsTable.id })
+    .from(productsTable)
+    .where(
+      warehouse && warehouse !== "all"
+        ? and(eq(productsTable.status, "active"), eq(productsTable.warehouse, warehouse))
+        : eq(productsTable.status, "active")
+    );
 
   const warehouseCondition = warehouse && warehouse !== "all"
     ? sql`AND warehouse = ${warehouse}`
@@ -163,25 +170,26 @@ router.get("/", requireAuth, asyncHandler(async (req, res) => {
   }
 
   const ids = records.map(r => r.id);
+  const productIds = [...new Set(records.map(r => r.productId))];
 
-  const boxes = await db.select().from(inventoryBoxesTable)
-    .where(inArray(inventoryBoxesTable.inventoryRecordId, ids))
-    .orderBy(inventoryBoxesTable.inventoryRecordId, inventoryBoxesTable.boxNumber);
+  const [boxes, lcRows] = await Promise.all([
+    db.select().from(inventoryBoxesTable)
+      .where(inArray(inventoryBoxesTable.inventoryRecordId, ids))
+      .orderBy(inventoryBoxesTable.inventoryRecordId, inventoryBoxesTable.boxNumber),
+    db.select({
+      productId: inventoryRecordsTable.productId,
+      lastConsumptionDate: max(inventoryRecordsTable.recordDate),
+    })
+      .from(inventoryRecordsTable)
+      .where(inArray(inventoryRecordsTable.productId, productIds))
+      .groupBy(inventoryRecordsTable.productId),
+  ]);
 
   const boxMap = new Map<string, typeof boxes>();
   for (const box of boxes) {
     if (!boxMap.has(box.inventoryRecordId)) boxMap.set(box.inventoryRecordId, []);
     boxMap.get(box.inventoryRecordId)!.push(box);
   }
-
-  const productIds = [...new Set(records.map(r => r.productId))];
-  const lcRows = await db.select({
-    productId: inventoryRecordsTable.productId,
-    lastConsumptionDate: max(inventoryRecordsTable.recordDate),
-  })
-    .from(inventoryRecordsTable)
-    .where(inArray(inventoryRecordsTable.productId, productIds))
-    .groupBy(inventoryRecordsTable.productId);
 
   const lcMap = new Map<string, string>();
   for (const row of lcRows) {

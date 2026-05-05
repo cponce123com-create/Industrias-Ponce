@@ -1,35 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-// ---------------------------------------------------------------------------
-// Token persistence: stored in localStorage so it survives page refreshes
-// and React re-renders. memoryToken acts as an in-memory cache to avoid
-// repeated localStorage reads on every render.
-// ---------------------------------------------------------------------------
-const TOKEN_KEY = "auth_token";
-
-function readTokenFromStorage(): string | null {
-  try {
-    return localStorage.getItem(TOKEN_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function writeTokenToStorage(token: string | null): void {
-  try {
-    if (token) {
-      localStorage.setItem(TOKEN_KEY, token);
-    } else {
-      localStorage.removeItem(TOKEN_KEY);
-    }
-  } catch {
-    // localStorage may be blocked — fail silently.
-  }
-}
-
-// Seed the in-memory cache from localStorage on module load.
-let memoryToken: string | null = readTokenFromStorage();
+const COOKIE_NAME = "auth_token";
 
 export type WarehouseRole = "supervisor" | "operator" | "quality" | "admin" | "readonly";
 
@@ -42,8 +14,13 @@ export interface AuthUser {
   createdAt: string;
 }
 
-export function getAuthToken() {
-  return memoryToken;
+function readTokenFromCookie(): string | null {
+  const match = document.cookie.match(new RegExp("(?:^|; )" + COOKIE_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "=([^;]*)"));
+  return match ? decodeURIComponent(match[1]!) : null;
+}
+
+export function getAuthToken(): string | null {
+  return readTokenFromCookie();
 }
 
 export function getAuthHeaders(): Record<string, string> {
@@ -53,9 +30,11 @@ export function getAuthHeaders(): Record<string, string> {
 
 export function useAuth() {
   const queryClient = useQueryClient();
-  const [token, setToken] = useState<string | null>(memoryToken);
+  // Token state only changes on login/logout — not on every auth check.
+  // Separate from loading state so consumers don't re-render on every poll.
+  const [token, setToken] = useState<string | null>(readTokenFromCookie());
 
-  const { data: user, isLoading, error } = useQuery<AuthUser | null>({
+  const { data: user, isLoading, error } = useQuery<AuthUser | null, Error>({
     queryKey: ["/api/auth/me"],
     queryFn: async () => {
       const currentToken = getAuthToken();
@@ -67,8 +46,6 @@ export function useAuth() {
 
       if (!res.ok) {
         if (res.status === 401) {
-          memoryToken = null;
-          writeTokenToStorage(null);
           setToken(null);
         }
         return null;
@@ -92,19 +69,17 @@ export function useAuth() {
     }
 
     const result = await res.json();
-    memoryToken = result.token;
-    writeTokenToStorage(result.token);
     setToken(result.token);
     queryClient.setQueryData(["/api/auth/me"], result.user);
     return result.user;
   };
 
   const logout = () => {
-    memoryToken = null;
-    writeTokenToStorage(null);
     setToken(null);
     queryClient.setQueryData(["/api/auth/me"], null);
     queryClient.clear();
+    // Tell the server to revoke the token and clear the cookie.
+    void fetch("/api/auth/logout", { method: "POST" });
   };
 
   return {

@@ -1,5 +1,4 @@
 import { Router } from "express";
-import * as XLSX from "xlsx";
 import { db } from "@workspace/db";
 import {
   productsTable, inventoryRecordsTable, immobilizedProductsTable,
@@ -239,6 +238,7 @@ router.get("/epp-alerts", requireAuth, asyncHandler(async (_req, res) => {
 }));
 
 router.get("/export/:type", requireAuth, asyncHandler(async (req, res) => {
+  const XLSX = await import("xlsx");
   const { type } = req.params;
   const { from, to, status, personnelId } = req.query as Record<string, string | undefined>;
 

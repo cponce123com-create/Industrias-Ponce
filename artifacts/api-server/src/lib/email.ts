@@ -505,7 +505,7 @@ ${senderName} - Pesador de Turno`;
     return;
   }
 
-  const SMTP_USER = "carlos.ponce@sanjacinto.com.pe";
+  const SMTP_USER = process.env.SMTP_USER ?? "carlos.ponce@sanjacinto.com.pe";
 
   const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
@@ -681,7 +681,7 @@ export async function sendProductOutEmail({
     return;
   }
 
-  const SMTP_USER = "carlos.ponce@sanjacinto.com.pe";
+  const SMTP_USER = process.env.SMTP_USER ?? "carlos.ponce@sanjacinto.com.pe";
   const codeLabel = productCode.trim() ? ` (${productCode.trim()})` : "";
   const subject = `Término de Producto${codeLabel} — ${productName}`;
 
@@ -763,10 +763,10 @@ Supervisor de Cocina Colores`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helpers comunes para plantillas de correo recurrente
+// Common helpers — SMTP_USER sourced from env once, reused everywhere
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SMTP_USER = "carlos.ponce@sanjacinto.com.pe";
+const SMTP_USER = process.env.SMTP_USER ?? "carlos.ponce@sanjacinto.com.pe";
 
 function buildTransporter() {
   const smtpPass = process.env.SMTP_APP_PASSWORD;

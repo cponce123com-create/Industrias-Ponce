@@ -1,11 +1,20 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// API Versioning Plan (ARC-03)
+// All routes should migrate to /api/v1/ prefix in a future release.
+// When that migration happens, the /api prefix will serve v1 by default.
+// ─────────────────────────────────────────────────────────────────────────────
+
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import pinoHttp from "pino-http";
+import compression from "compression";
+import cookieParser from "cookie-parser";
 import path from "path";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { generalApiLimiter } from "./lib/rate-limit.js";
+import { apiErrorHandler } from "./lib/error";
 
 const app: Express = express();
 
@@ -14,6 +23,11 @@ const app: Express = express();
 // evitando que un atacante falsee su IP con el header X-Forwarded-For.
 // ---------------------------------------------------------------------------
 app.set("trust proxy", 1);
+
+// ---------------------------------------------------------------------------
+// Compression — gzip/brotli early in the chain so it applies to all responses.
+// ---------------------------------------------------------------------------
+app.use(compression());
 
 // ---------------------------------------------------------------------------
 // Helmet — agrega headers HTTP de seguridad automáticamente:
@@ -84,10 +98,16 @@ app.use(cors({
   },
   credentials: true,
 }));
+app.use(cookieParser());
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 
 app.use("/api", generalApiLimiter, router);
+
+// Health check endpoint — required by render.yaml (healthCheckPath: /api/healthz)
+app.get("/api/healthz", (_req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
 
 // ---------------------------------------------------------------------------
 // Serve the React SPA in production.
@@ -96,6 +116,18 @@ app.use("/api", generalApiLimiter, router);
 // index.html so that client-side routing (wouter) works correctly.
 // ---------------------------------------------------------------------------
 if (process.env.NODE_ENV === "production") {
+  // Serve static files (assets/, favicon.svg, etc.) — cache aggressively
+  app.use("/static", express.static(path.join(__dirname, "../static"), {
+    maxAge: "1y",
+    etag: true,
+  }));
+
+  // index.html — always fresh so users get new JS bundles
+  app.get("/index.html", (_req: Request, res: Response) => {
+    res.setHeader("Cache-Control", "no-cache, must-revalidate");
+    res.sendFile(path.join(FRONTEND_DIST, "index.html"));
+  });
+
   // Serve static files (assets/, favicon.svg, etc.)
   app.use(express.static(FRONTEND_DIST));
 
@@ -108,10 +140,8 @@ if (process.env.NODE_ENV === "production") {
 }
 
 // Global error handler — catches any unhandled errors thrown in route handlers.
-// Logs the full error internally and returns a generic 500 to avoid leaking internals.
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  logger.error({ err }, "Unhandled error");
-  res.status(500).json({ error: "Error interno del servidor" });
-});
+// apiErrorHandler handles ApiError instances with proper status codes and codes.
+// Unknown errors are logged and return a generic 500 to avoid leaking internals.
+app.use(apiErrorHandler);
 
 export default app;

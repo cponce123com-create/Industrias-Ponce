@@ -45,13 +45,41 @@ const immobilizedSchema = z.object({
 });
 
 router.get("/", requireAuth, asyncHandler(async (_req, res) => {
-  const records = await db.select().from(immobilizedProductsTable).orderBy(desc(immobilizedProductsTable.immobilizedDate));
+  const records = await db.select({
+      id: immobilizedProductsTable.id,
+      productId: immobilizedProductsTable.productId,
+      quantity: immobilizedProductsTable.quantity,
+      reason: immobilizedProductsTable.reason,
+      immobilizedDate: immobilizedProductsTable.immobilizedDate,
+      status: immobilizedProductsTable.status,
+      releasedAt: immobilizedProductsTable.releasedAt,
+      releasedBy: immobilizedProductsTable.releasedBy,
+      notes: immobilizedProductsTable.notes,
+      photos: immobilizedProductsTable.photos,
+      registeredBy: immobilizedProductsTable.registeredBy,
+      createdAt: immobilizedProductsTable.createdAt,
+      updatedAt: immobilizedProductsTable.updatedAt,
+    }).from(immobilizedProductsTable).orderBy(desc(immobilizedProductsTable.immobilizedDate));
   res.json(records);
 }));
 
 router.get("/:id", requireAuth, asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const records = await db.select().from(immobilizedProductsTable).where(eq(immobilizedProductsTable.id, id as string)).limit(1);
+  const records = await db.select({
+      id: immobilizedProductsTable.id,
+      productId: immobilizedProductsTable.productId,
+      quantity: immobilizedProductsTable.quantity,
+      reason: immobilizedProductsTable.reason,
+      immobilizedDate: immobilizedProductsTable.immobilizedDate,
+      status: immobilizedProductsTable.status,
+      releasedAt: immobilizedProductsTable.releasedAt,
+      releasedBy: immobilizedProductsTable.releasedBy,
+      notes: immobilizedProductsTable.notes,
+      photos: immobilizedProductsTable.photos,
+      registeredBy: immobilizedProductsTable.registeredBy,
+      createdAt: immobilizedProductsTable.createdAt,
+      updatedAt: immobilizedProductsTable.updatedAt,
+    }).from(immobilizedProductsTable).where(eq(immobilizedProductsTable.id, id as string)).limit(1);
   if (records.length === 0) {
     res.status(404).json({ error: "Registro no encontrado" });
     return;
@@ -127,7 +155,21 @@ router.post(
       res.status(400).json({ error: "No se enviaron archivos" }); return;
     }
 
-    const [record] = await db.select().from(immobilizedProductsTable).where(eq(immobilizedProductsTable.id, id as string)).limit(1);
+    const [record] = await db.select({
+      id: immobilizedProductsTable.id,
+      productId: immobilizedProductsTable.productId,
+      quantity: immobilizedProductsTable.quantity,
+      reason: immobilizedProductsTable.reason,
+      immobilizedDate: immobilizedProductsTable.immobilizedDate,
+      status: immobilizedProductsTable.status,
+      releasedAt: immobilizedProductsTable.releasedAt,
+      releasedBy: immobilizedProductsTable.releasedBy,
+      notes: immobilizedProductsTable.notes,
+      photos: immobilizedProductsTable.photos,
+      registeredBy: immobilizedProductsTable.registeredBy,
+      createdAt: immobilizedProductsTable.createdAt,
+      updatedAt: immobilizedProductsTable.updatedAt,
+    }).from(immobilizedProductsTable).where(eq(immobilizedProductsTable.id, id as string)).limit(1);
     if (!record) { res.status(404).json({ error: "Registro no encontrado" }); return; }
 
     const existing = (record.photos as string[] | null) ?? [];
@@ -186,7 +228,21 @@ router.delete(
     const { id, photoIndex } = req.params;
     const idx = parseInt(photoIndex as string, 10);
 
-    const [record] = await db.select().from(immobilizedProductsTable).where(eq(immobilizedProductsTable.id, id as string)).limit(1);
+    const [record] = await db.select({
+      id: immobilizedProductsTable.id,
+      productId: immobilizedProductsTable.productId,
+      quantity: immobilizedProductsTable.quantity,
+      reason: immobilizedProductsTable.reason,
+      immobilizedDate: immobilizedProductsTable.immobilizedDate,
+      status: immobilizedProductsTable.status,
+      releasedAt: immobilizedProductsTable.releasedAt,
+      releasedBy: immobilizedProductsTable.releasedBy,
+      notes: immobilizedProductsTable.notes,
+      photos: immobilizedProductsTable.photos,
+      registeredBy: immobilizedProductsTable.registeredBy,
+      createdAt: immobilizedProductsTable.createdAt,
+      updatedAt: immobilizedProductsTable.updatedAt,
+    }).from(immobilizedProductsTable).where(eq(immobilizedProductsTable.id, id as string)).limit(1);
     if (!record) { res.status(404).json({ error: "Registro no encontrado" }); return; }
 
     const photos = [...((record.photos as string[] | null) ?? [])];

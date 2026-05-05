@@ -208,10 +208,13 @@ export default function BalancesPage() {
 
   const uniqueDates = [...new Map(dates.map(d => [d.balanceDate, d])).values()];
 
-  const filtered = records.filter(r =>
-    r.code.toLowerCase().includes(search.toLowerCase()) ||
-    r.productDescription.toLowerCase().includes(search.toLowerCase()) ||
-    r.warehouse.toLowerCase().includes(search.toLowerCase())
+  const filtered = useMemo(() =>
+    records.filter(r =>
+      r.code.toLowerCase().includes(search.toLowerCase()) ||
+      r.productDescription.toLowerCase().includes(search.toLowerCase()) ||
+      r.warehouse.toLowerCase().includes(search.toLowerCase())
+    ),
+    [records, search]
   );
 
   const createMutation = useMutation({

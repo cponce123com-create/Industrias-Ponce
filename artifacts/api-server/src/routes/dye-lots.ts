@@ -32,13 +32,18 @@ async function getNotificationData(userId: string): Promise<{
   changedByName: string;
   allActiveEmails: Array<{ email: string; name: string }>;
 }> {
-  const users = await db
-    .select({ id: usersTable.id, email: usersTable.email, name: usersTable.name, status: usersTable.status })
-    .from(usersTable);
+  const [changedByUser] = await db
+    .select({ email: usersTable.email, name: usersTable.name })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId))
+    .limit(1);
 
-  const changedByUser = users.find((u) => u.id === userId);
-  const allActiveEmails = users
-    .filter((u) => u.status === "active" && u.email)
+  const activeUsers = await db
+    .select({ email: usersTable.email, name: usersTable.name })
+    .from(usersTable)
+    .where(eq(usersTable.status, "active"));
+
+  const allActiveEmails = activeUsers
     .map((u) => ({ email: u.email, name: u.name }));
 
   return {
@@ -124,7 +129,23 @@ router.get("/", requireAuth, asyncHandler(async (_req, res) => {
 // ---------------------------------------------------------------------------
 router.get("/:id", requireAuth, asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const records = await db.select().from(dyeLotsTable).where(eq(dyeLotsTable.id, id as string)).limit(1);
+  const records = await db.select({
+      id: dyeLotsTable.id,
+      productId: dyeLotsTable.productId,
+      lotNumber: dyeLotsTable.lotNumber,
+      quantity: dyeLotsTable.quantity,
+      expirationDate: dyeLotsTable.expirationDate,
+      receiptDate: dyeLotsTable.receiptDate,
+      supplier: dyeLotsTable.supplier,
+      certificateNumber: dyeLotsTable.certificateNumber,
+      qualityStatus: dyeLotsTable.qualityStatus,
+      approvedBy: dyeLotsTable.approvedBy,
+      approvedAt: dyeLotsTable.approvedAt,
+      notes: dyeLotsTable.notes,
+      registeredBy: dyeLotsTable.registeredBy,
+      createdAt: dyeLotsTable.createdAt,
+      updatedAt: dyeLotsTable.updatedAt,
+    }).from(dyeLotsTable).where(eq(dyeLotsTable.id, id as string)).limit(1);
   if (records.length === 0) {
     res.status(404).json({ error: "Lote no encontrado" });
     return;
@@ -192,7 +213,23 @@ router.put("/:id", requireAuth, requireRole("supervisor", "admin", "quality"), a
   const authedReq = req as AuthenticatedRequest;
 
   // Guardamos el estado anterior para detectar si cambió el qualityStatus
-  const [before] = await db.select().from(dyeLotsTable).where(eq(dyeLotsTable.id, id as string)).limit(1);
+  const [before] = await db.select({
+      id: dyeLotsTable.id,
+      productId: dyeLotsTable.productId,
+      lotNumber: dyeLotsTable.lotNumber,
+      quantity: dyeLotsTable.quantity,
+      expirationDate: dyeLotsTable.expirationDate,
+      receiptDate: dyeLotsTable.receiptDate,
+      supplier: dyeLotsTable.supplier,
+      certificateNumber: dyeLotsTable.certificateNumber,
+      qualityStatus: dyeLotsTable.qualityStatus,
+      approvedBy: dyeLotsTable.approvedBy,
+      approvedAt: dyeLotsTable.approvedAt,
+      notes: dyeLotsTable.notes,
+      registeredBy: dyeLotsTable.registeredBy,
+      createdAt: dyeLotsTable.createdAt,
+      updatedAt: dyeLotsTable.updatedAt,
+    }).from(dyeLotsTable).where(eq(dyeLotsTable.id, id as string)).limit(1);
   if (!before) {
     res.status(404).json({ error: "Lote no encontrado" });
     return;
